@@ -47,7 +47,8 @@ const parseImage = (item: Element) => {
 
 const fetchViaProxy = async (url: string) => {
   console.info('[RSS] Fetch', url);
-  const proxyRes = await fetch(`/rss?url=${encodeURIComponent(url)}`);
+  const proxyBase = import.meta.env.PROD ? '/api/rss' : '/rss';
+  const proxyRes = await fetch(`${proxyBase}?url=${encodeURIComponent(url)}`);
   console.info('[RSS] Proxy status', proxyRes.status, proxyRes.statusText);
   if (proxyRes.ok) return proxyRes;
 
