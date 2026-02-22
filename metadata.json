@@ -1,0 +1,8 @@
+{
+  "name": "Techie 4 Christ - Faith & Tech Hub",
+  "description": "A personal platform for faith-based tech reflections, a dynamic blog feed, and a digital resource hub for ministry assets.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}

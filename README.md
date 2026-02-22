@@ -1,2 +1,2 @@
-# techie4christ
-this is my personal portfolio site
+# Techie4Christ
+This is my personal Portfolio site
