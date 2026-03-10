@@ -1,4 +1,3 @@
-
 /**
  * TECHIE 4 CHRIST - PERSONAL BLOG & PORTFOLIO
  * Integrated with Local Storage CMS & Contentful
@@ -7,16 +6,15 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Navigation from './components/Navigation';
-import Support from './components/Support';
 import Contact from './components/Contact';
-import Services from './components/Services';
 import About from './components/About';
+import MailerLiteEmbed from './components/MailerLiteEmbed';
 import { SocialIcon } from './components/SocialIcons';
 import {
   DEFAULT_SITE_SETTINGS,
   SOCIAL_LINKS
 } from './constants';
-import { Asset, BlogPost, YouTubeVideo, SiteSettings, PodcastEpisode, InternalArticle, RateCardItem, ServiceOffering, SupportDetail } from './types';
+import { Asset, BlogPost, YouTubeVideo, SiteSettings, PodcastEpisode, InternalArticle } from './types';
 import { contentfulService } from './services/contentfulService';
 import { fetchRSSFeed, fetchPodcastFeed } from './services/rssService';
 import { addComment, addShare, getArticleEngagement, listComments, toggleLike } from './services/engagementService';
@@ -38,9 +36,6 @@ const App: React.FC = () => {
   const [podcastEpisodes, setPodcastEpisodes] = useState<PodcastEpisode[]>([]);
   const [blogPosts, setBlogPosts] = useState<BlogPost[]>([]);
   const [portfolioItems, setPortfolioItems] = useState<any[]>([]);
-  const [services, setServices] = useState<ServiceOffering[]>([]);
-  const [rateCards, setRateCards] = useState<RateCardItem[]>([]);
-  const [supportDetails, setSupportDetails] = useState<SupportDetail[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [podcastPage, setPodcastPage] = useState(1);
   const [blogPage, setBlogPage] = useState(1);
@@ -89,8 +84,6 @@ const App: React.FC = () => {
     if (path === '/substack') return setActiveTab('substack');
     if (path === '/contact') return setActiveTab('contact');
     if (path === '/about') return setActiveTab('about');
-    if (path === '/services') return setActiveTab('services');
-    if (path === '/support') return setActiveTab('support');
     setActiveTab('home');
   }, [location.pathname]);
 
@@ -120,9 +113,6 @@ const App: React.FC = () => {
           cfSubstackFeeds,
           cfPodcastFeeds,
           cfPortfolioItems,
-          cfServices,
-          cfRateCards,
-          cfSupport,
         ] = await Promise.all([
           contentfulService.getSettings(),
           contentfulService.getArticles(),
@@ -131,9 +121,6 @@ const App: React.FC = () => {
           contentfulService.getSubstackFeeds(),
           contentfulService.getPodcastFeeds(),
           contentfulService.getPortfolioItems(),
-          contentfulService.getServices(),
-          contentfulService.getRateCards(),
-          contentfulService.getSupportDetails(),
         ]);
 
         if (cfSettings) setSettings(cfSettings);
@@ -141,9 +128,6 @@ const App: React.FC = () => {
         if (cfAssets) setAssets(cfAssets);
         if (cfVideos) setVideos(cfVideos);
         if (cfPortfolioItems) setPortfolioItems(cfPortfolioItems);
-        if (cfServices) setServices(cfServices);
-        if (cfRateCards) setRateCards(cfRateCards);
-        if (cfSupport) setSupportDetails(cfSupport);
 
         const substackFeed = cfSubstackFeeds?.[0]?.rssUrl || '';
         const podcastFeed = cfPodcastFeeds?.[0]?.rssUrl || '';
@@ -222,11 +206,24 @@ const App: React.FC = () => {
     }
   };
 
+  const decodeHtml = (value: string) =>
+    value
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/&amp;/g, '&');
+
   const formatArticleContent = (content: string) => {
     const trimmed = content?.trim();
     if (!trimmed) return '<p>No content available yet.</p>';
-    const hasHtml = /<([a-z][\s\S]*?)>/i.test(trimmed);
-    if (hasHtml) return trimmed;
+
+    if (/<([a-z][\s\S]*?)>/i.test(trimmed)) return trimmed;
+
+    if (/&lt;\/?[a-z][\s\S]*?&gt;/i.test(trimmed)) {
+      return decodeHtml(trimmed);
+    }
+
     const escaped = trimmed
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
@@ -299,8 +296,6 @@ const App: React.FC = () => {
       substack: '/substack',
       contact: '/contact',
       about: '/about',
-      services: '/services',
-      support: '/support',
     };
     const path = tabToPath[tabId];
     if (path && location.pathname !== path) {
@@ -315,7 +310,7 @@ const App: React.FC = () => {
     const shortMatch = cleanUrl.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/);
     if (shortMatch) return `https://www.youtube.com/embed/${shortMatch[1]}`;
 
-    const watchMatch = cleanUrl.match(/[?&]v=([a-zA-Z0-9_-]{11})/);
+    const watchMatch = cleanUrl.match(/[-&]v=([a-zA-Z0-9_-]{11})/);
     if (watchMatch) return `https://www.youtube.com/embed/${watchMatch[1]}`;
 
     const embedMatch = cleanUrl.match(/embed\/([a-zA-Z0-9_-]{11})/);
@@ -332,7 +327,7 @@ const App: React.FC = () => {
     const cleanUrl = url.trim();
     const shortMatch = cleanUrl.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/);
     if (shortMatch) return `https://img.youtube.com/vi/${shortMatch[1]}/maxresdefault.jpg`;
-    const watchMatch = cleanUrl.match(/[?&]v=([a-zA-Z0-9_-]{11})/);
+    const watchMatch = cleanUrl.match(/[-&]v=([a-zA-Z0-9_-]{11})/);
     if (watchMatch) return `https://img.youtube.com/vi/${watchMatch[1]}/maxresdefault.jpg`;
     const embedMatch = cleanUrl.match(/embed\/([a-zA-Z0-9_-]{11})/);
     if (embedMatch) return `https://img.youtube.com/vi/${embedMatch[1]}/maxresdefault.jpg`;
@@ -350,6 +345,35 @@ const App: React.FC = () => {
   const filteredAssets = assetFilter === 'All'
     ? assets
     : assets.filter(a => a.category === assetFilter);
+
+  const getAssetPaidState = (asset: Asset) => {
+    if (typeof asset.isPaid === 'boolean') return asset.isPaid;
+    if (typeof asset.isPaid === 'string') return /^yes$/i.test(asset.isPaid.trim());
+    const price = asset.price?.trim();
+    if (!price) return false;
+    return !/^free$/i.test(price);
+  };
+
+  const getAssetPriceLabel = (asset: Asset) => {
+    const price = asset.price?.trim();
+    if (price) {
+      if (getAssetPaidState(asset) && /^free$/i.test(price)) return 'Paid';
+      return price;
+    }
+    return getAssetPaidState(asset) ? 'Paid' : 'Free';
+  };
+
+  const ArrowRight = ({ className = 'w-3 h-3' }: { className?: string }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 12h14M13 5l7 7-7 7" />
+    </svg>
+  );
+
+  const ArrowLeft = ({ className = 'w-3 h-3' }: { className?: string }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 12H5m7-7-7 7 7 7" />
+    </svg>
+  );
 
 
   const relatedArticles = activeArticle
@@ -442,14 +466,12 @@ const App: React.FC = () => {
     if (promoItems.length <= 1) return;
     const timer = setInterval(() => {
       setPromoIndex((prev) => (prev + 1) % promoItems.length);
-    }, 7000);
+    }, 12000);
     return () => clearInterval(timer);
   }, [promoItems.length]);
 
-  
-
   return (
-    <div className="min-h-screen pt-16 flex flex-col bg-slate-950 text-slate-200">
+    <div className="min-h-screen pt-16 flex flex-col bg-white text-slate-900">
       <Navigation activeTab={activeTab} setActiveTab={handleNavClick} />
 
       <main className="flex-1 w-full overflow-hidden">
@@ -459,12 +481,12 @@ const App: React.FC = () => {
               onClick={() => handleNavClick('home')}
               className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white inline-flex items-center gap-2"
             >
-              ← Home
+              <span className="inline-flex items-center gap-2"><ArrowLeft className="w-4 h-4" />Home</span>
             </button>
           </div>
         )}
         {activeTab === 'home' && (
-          <div className="animate-in fade-in slide-in-from-bottom duration-1000 space-y-32 pb-24">
+          <div className="animate-in fade-in slide-in-from-bottom duration-1000 space-y-24 pb-24">
             
             {/* 1. HERO SECTION - Preserved exactly */}
             <section id="hero" className="relative max-w-7xl mx-auto px-6 pt-20 lg:pt-32 grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
@@ -492,16 +514,15 @@ const App: React.FC = () => {
                 className="space-y-6 md:space-y-8 text-center lg:text-left animate-in fade-in slide-in-from-bottom"
                 style={{ animationDelay: '260ms' }}
               >
-                <span className="text-amber-400 font-extrabold uppercase tracking-[0.3em] text-[10px]">{settings.heroSubtitle}</span>
-                <h1 className="text-5xl sm:text-6xl md:text-7xl font-extrabold tracking-tighter leading-tight text-white">
+                <span className="text-amber-400 font-extrabold uppercase tracking-[0.3em] text-[10px] hero-kicker-animate">{settings.heroSubtitle}</span>
+                <h1 className="text-5xl sm:text-6xl md:text-7xl font-extrabold tracking-tighter leading-tight text-white hero-title-animate">
                   {renderHeroTitle(settings.heroTitle)}
                 </h1>
                 <p className="text-lg sm:text-xl md:text-2xl text-slate-400 font-light leading-relaxed">
-                  I help ministries build digital systems and strategies that multiply impact, streamline operations,
-                  and turn vision into measurable growth.
+                  Faith-driven strategy, tech-built. I help ministries turn vision into scalable systems that nurture people and multiply impact.
                 </p>
               <div className="flex flex-wrap justify-center lg:justify-start gap-4">
-                  <button onClick={() => handleNavClick('services')} className="btn-amber pulse-btn px-8 sm:px-10 py-3 sm:py-4 rounded-2xl text-xs sm:text-sm uppercase tracking-widest font-bold">Book Me</button>
+                  <button onClick={() => handleNavClick('articles')} className="btn-amber pulse-btn px-8 sm:px-10 py-3 sm:py-4 rounded-2xl text-xs sm:text-sm uppercase tracking-widest font-bold">Read Articles</button>
                   <button onClick={() => handleNavClick('resources')} className="btn-ghost px-8 sm:px-10 py-3 sm:py-4 rounded-2xl text-xs sm:text-sm uppercase tracking-widest font-bold">Browse Assets</button>
               </div>
                 <div className="flex items-center justify-center lg:justify-start gap-4 pt-2">
@@ -519,9 +540,9 @@ const App: React.FC = () => {
 
             {/* Promo Banner */}
             {promoItems.length > 0 && (
-              <section id="promo-banner" className="w-full">
+              <section id="promo-banner" className="w-full promo-banner">
                 <div
-                  className="w-full relative overflow-hidden border-y border-white/10 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 py-16 md:py-20 lg:py-24"
+                  className="w-full relative overflow-hidden border-y border-white/10 themed-gradient py-16 md:py-20 lg:py-24"
                   style={{
                     backgroundImage: promoItems[promoIndex]?.image
                       ? `linear-gradient(120deg, rgba(2,6,23,0.9), rgba(2,6,23,0.7)), url(${promoItems[promoIndex].image})`
@@ -531,7 +552,7 @@ const App: React.FC = () => {
                   }}
                 >
                   <div
-                    className="max-w-7xl mx-auto px-6 min-h-[300px] md:min-h-[360px] lg:min-h-[420px] flex items-center cursor-pointer"
+                    className="max-w-7xl mx-auto px-6 min-h-[300px] md:min-h-[360px] lg:min-h-[420px] flex flex-col justify-center cursor-pointer"
                     role="button"
                     tabIndex={0}
                     onClick={() => openPromoLink(promoItems[promoIndex].href)}
@@ -555,37 +576,16 @@ const App: React.FC = () => {
                       </p>
                     </div>
 
-                    <div className="flex items-center gap-3 hidden">
-                      <button
-                        onClick={() => setPromoIndex((prev) => (prev - 1 + promoItems.length) % promoItems.length)}
-                        className="px-4 h-10 rounded-full border border-white/10 text-slate-300 hover:text-white hover:border-amber-400/50 text-[10px] font-black uppercase tracking-widest"
-                        aria-label="Previous promo"
-                      >
-                        Prev
-                      </button>
-                      <a
-                        href={promoItems[promoIndex].href}
-                        target={promoItems[promoIndex].href.startsWith('/') ? undefined : '_blank'}
-                        rel={promoItems[promoIndex].href.startsWith('/') ? undefined : 'noreferrer'}
-                        className="primary-btn px-8 py-3 rounded-2xl text-[10px] uppercase tracking-widest font-black"
-                      >
-                        {promoItems[promoIndex].cta}
-                      </a>
-                      <button
-                        onClick={() => setPromoIndex((prev) => (prev + 1) % promoItems.length)}
-                        className="px-4 h-10 rounded-full border border-white/10 text-slate-300 hover:text-white hover:border-amber-400/50 text-[10px] font-black uppercase tracking-widest"
-                        aria-label="Next promo"
-                      >
-                        Next
-                      </button>
-                    </div>
                   </div>
 
-                  <div className="mt-8 flex items-center gap-2 hidden">
+                  <div className="mt-auto pt-8 flex w-full items-center justify-center gap-2">
                     {promoItems.map((item, idx) => (
                       <button
                         key={item.id}
-                        onClick={() => setPromoIndex(idx)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setPromoIndex(idx);
+                        }}
                         className={`h-2 w-6 rounded-full transition-all ${idx === promoIndex ? 'bg-amber-400' : 'bg-white/10 hover:bg-white/30'}`}
                         aria-label={`Go to promo ${idx + 1}`}
                       />
@@ -597,56 +597,32 @@ const App: React.FC = () => {
             )}
 
             <div className="max-w-7xl mx-auto px-6"><div className="section-divider"></div></div>
-
-            {/* 2. SUBSTACK ARTICLES */}
-            <section id="substack-feed" className="max-w-7xl mx-auto px-6">
-              <div className="flex items-end justify-between mb-12">
-                <div className="text-left">
-                  <h2 className="text-4xl md:text-5xl font-extrabold tracking-tighter text-white">Substack <span className="text-orange-400">Feed</span></h2>
-                  <p className="text-slate-500 mt-2 font-light">The latest newsletter reflections on faith and tech.</p>
-                </div>
-                <a href={settings.substackUrl} target="_blank" className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white pb-1 border-b border-transparent hover:border-orange-400 transition-all">Visit Substack →</a>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                {blogPosts.slice(0, 3).map(post => (
-                  <a key={post.id} href={post.link} target="_blank" rel="noreferrer" className="glass-card rounded-[2.5rem] overflow-hidden group border-white/5 flex flex-col h-full">
-                    <div className="aspect-video overflow-hidden">
-                      <img src={post.thumbnail} className="w-full h-full object-cover group-hover:scale-105 transition-all opacity-80" alt="" />
-                    </div>
-                    <div className="p-8 flex-1 flex flex-col space-y-4">
-                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{post.pubDate}</span>
-                      <h3 className="text-xl font-bold text-white leading-tight group-hover:text-amber-400 transition-colors flex-1">{post.title}</h3>
-                      <p className="text-slate-500 text-sm line-clamp-2 leading-relaxed">{post.content}</p>
-                    </div>
-                  </a>
-                ))}
-              </div>
-            </section>
-
-            <div className="max-w-7xl mx-auto px-6"><div className="section-divider"></div></div>
-
-            {/* 3. MAIN ARTICLES (INTERNAL ARCHIVE) */}
-            <section id="internal-articles" className="max-w-7xl mx-auto px-6">
+            {/* 2. MAIN ARTICLES (INTERNAL ARCHIVE) */}
+            <section id="internal-articles" className="max-w-7xl mx-auto px-6 home-section">
                <div className="flex items-end justify-between mb-12">
                 <div className="text-left">
                   <h2 className="text-4xl md:text-5xl font-extrabold tracking-tighter text-white">Internal <span className="text-indigo-400">Archive</span></h2>
                   <p className="text-slate-500 mt-2 font-light">Deep dives and long-form essays curated here.</p>
                 </div>
-                <button onClick={() => handleNavClick('articles')} className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white pb-1 border-b border-transparent hover:border-indigo-400 transition-all">Full Archive →</button>
+                <button onClick={() => handleNavClick('articles')} className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white pb-1 border-b border-transparent hover:border-indigo-400 transition-all inline-flex items-center gap-2">Full Archive <ArrowRight className="w-3 h-3" /></button>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 reveal-grid">
                 {articles.slice(0, 2).map(art => (
-                  <div key={art.id} className="glass-card rounded-[3rem] p-10 flex flex-col lg:flex-row gap-8 items-start group border-white/5">
-                    <img src={art.thumbnail} className="w-full lg:w-48 h-48 object-cover rounded-[2rem]" alt="" />
-                    <div className="space-y-4 flex-1">
+                  <div key={art.id} className="glass-card archive-card rounded-[2.5rem] p-6 md:p-8 flex flex-col md:flex-row gap-6 items-start group border-white/5">
+                    <div className="w-full md:w-56">
+                      <div className="aspect-[4/3] overflow-hidden rounded-2xl">
+                        <img src={art.thumbnail} className="w-full h-full object-cover group-hover:scale-105 transition-all" alt="" />
+                      </div>
+                    </div>
+                    <div className="space-y-3 flex-1">
                       <div className="flex justify-between items-center">
                         <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">{art.category}</span>
                         <span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">{art.pubDate}</span>
                       </div>
-                      <h3 className="text-2xl font-extrabold text-white group-hover:text-indigo-300 transition-colors">{art.title}</h3>
+                      <h3 className="text-xl md:text-2xl font-extrabold text-white group-hover:text-indigo-300 transition-colors">{art.title}</h3>
                       <p className="text-slate-500 text-sm line-clamp-2 leading-relaxed">{getPreviewText(art.content, 140)}</p>
                       <button onClick={() => openArticle(art)} className="text-white text-[10px] font-black uppercase tracking-widest pt-2 flex items-center gap-2 group/btn">
-                        Read Story <span className="group-hover/btn:translate-x-1 transition-transform">→</span>
+                        Read Story <span className="group-hover/btn:translate-x-1 transition-transform"><ArrowRight className="w-3 h-3" /></span>
                       </button>
                     </div>
                   </div>
@@ -656,8 +632,76 @@ const App: React.FC = () => {
 
             <div className="max-w-7xl mx-auto px-6"><div className="section-divider"></div></div>
 
-            {/* 4. THE PODCAST */}
-            <section id="podcast-hub" className="bg-slate-900/30 py-32 border-y border-white/5">
+            {/* 3. RESOURCE HUB */}
+            <section id="resource-hub-section" className="max-w-7xl mx-auto px-6 home-section">
+               <div className="flex flex-col md:flex-row items-end justify-between mb-12 gap-4">
+                <div className="text-left">
+                  <h2 className="text-4xl md:text-5xl font-extrabold tracking-tighter text-white">Resource <span className="text-amber-400">Hub</span></h2>
+                  <p className="text-slate-500 mt-2 font-light">Templates, media kits, and blueprints for your ministry.</p>
+                </div>
+                <button onClick={() => handleNavClick('resources')} className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white transition-all inline-flex items-center gap-2">Explore Full Hub <ArrowRight className="w-3 h-3" /></button>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-7 reveal-grid">
+                {assets.slice(0, 3).map(asset => (
+                  <div key={asset.id} className="glass-card asset-card rounded-xl overflow-hidden flex flex-col border-white/5 group">
+                     <div className="aspect-[16/11] overflow-hidden">
+                       <img src={asset.image} className="w-full h-full object-cover group-hover:scale-105 transition-all" alt="" />
+                     </div>
+                     <div className="p-5 space-y-3 flex-1 flex flex-col">
+                        <div className="flex justify-between items-center gap-2">
+                           <h4 className="text-lg font-bold text-white group-hover:text-amber-400 transition-colors line-clamp-1">{asset.name}</h4>
+                           <div className="flex items-center gap-2">
+                             {getAssetPaidState(asset) && (
+                               <span className="text-[10px] font-black text-amber-400 bg-amber-400/10 border border-amber-400/20 px-3 py-1 rounded-full">
+                                 Paid
+                               </span>
+                             )}
+                             {getAssetPriceLabel(asset) !== 'Paid' && (
+                               <span className="text-[10px] font-black text-amber-400 bg-amber-400/5 border border-amber-400/20 px-3 py-1 rounded-full">
+                                 {getAssetPriceLabel(asset)}
+                               </span>
+                             )}
+                           </div>
+                        </div>
+                        <p className="text-slate-500 text-sm flex-1 font-light leading-relaxed line-clamp-3">{asset.description}</p>
+                        <a href={asset.externalUrl} target="_blank" className="primary-btn w-full py-3 rounded-lg text-center text-[10px] uppercase font-black tracking-widest mt-4">Get Access</a>
+                     </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            <div className="max-w-7xl mx-auto px-6"><div className="section-divider"></div></div>
+
+            {/* 4. SUBSTACK ARTICLES */}
+            <section id="substack-feed" className="max-w-7xl mx-auto px-6 home-section">
+              <div className="flex items-end justify-between mb-12">
+                <div className="text-left">
+                  <h2 className="text-4xl md:text-5xl font-extrabold tracking-tighter text-white">Substack <span className="text-orange-400">Feed</span></h2>
+                  <p className="text-slate-500 mt-2 font-light">The latest newsletter reflections on faith and tech.</p>
+                </div>
+                <a href={settings.substackUrl} target="_blank" className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white pb-1 border-b border-transparent hover:border-orange-400 transition-all inline-flex items-center gap-2">Visit Substack <ArrowRight className="w-3 h-3" /></a>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-7 reveal-grid">
+                {blogPosts.slice(0, 3).map(post => (
+                  <a key={post.id} href={post.link} target="_blank" rel="noreferrer" className="glass-card rounded-2xl overflow-hidden group border-white/5 flex flex-col h-full">
+                    <div className="aspect-[16/10] overflow-hidden">
+                      <img src={post.thumbnail} className="w-full h-full object-cover group-hover:scale-105 transition-all" alt="" />
+                    </div>
+                    <div className="p-5 flex-1 flex flex-col space-y-3">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{post.pubDate}</span>
+                      <h3 className="text-lg font-bold text-white leading-tight group-hover:text-amber-400 transition-colors line-clamp-2">{post.title}</h3>
+                      <p className="text-slate-500 text-sm line-clamp-3 leading-relaxed">{post.content}</p>
+                    </div>
+                  </a>
+                ))}
+              </div>
+            </section>
+
+            <div className="max-w-7xl mx-auto px-6"><div className="section-divider"></div></div>
+
+            {/* 5. THE PODCAST */}
+            <section id="podcast-hub" className="bg-slate-900/30 border-y border-white/5 home-section">
               <div className="max-w-7xl mx-auto px-6">
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-16 items-start">
                   <div className="space-y-6">
@@ -688,7 +732,7 @@ const App: React.FC = () => {
                              {ep.description}
                            </p>
                            <a href={ep.link} target="_blank" className="inline-flex items-center gap-2 text-[10px] font-black uppercase text-emerald-400 pt-2 group">
-                             Listen Now <span className="group-hover:translate-x-1 transition-transform">→</span>
+                             Listen Now <span className="group-hover:translate-x-1 transition-transform"><ArrowRight className="w-3 h-3" /></span>
                            </a>
                         </div>
                       </div>
@@ -700,44 +744,16 @@ const App: React.FC = () => {
 
             <div className="max-w-7xl mx-auto px-6"><div className="section-divider"></div></div>
 
-            {/* 6. RESOURCE HUB */}
-            <section id="resource-hub-section" className="max-w-7xl mx-auto px-6">
-               <div className="flex flex-col md:flex-row items-end justify-between mb-12 gap-4">
-                <div className="text-left">
-                  <h2 className="text-4xl md:text-5xl font-extrabold tracking-tighter text-white">Resource <span className="text-amber-400">Hub</span></h2>
-                  <p className="text-slate-500 mt-2 font-light">Templates, media kits, and blueprints for your ministry.</p>
-                </div>
-                <button onClick={() => handleNavClick('resources')} className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white transition-all">Explore Full Hub →</button>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                {assets.slice(0, 3).map(asset => (
-                  <div key={asset.id} className="glass-card rounded-[2.5rem] overflow-hidden flex flex-col border-white/5 group">
-                     <div className="aspect-[4/3] overflow-hidden"><img src={asset.image} className="w-full h-full object-cover group-hover:scale-105 transition-all opacity-80" alt="" /></div>
-                     <div className="p-5 space-y-3 flex-1 flex flex-col">
-                        <div className="flex justify-between items-center">
-                           <h4 className="text-lg font-bold text-white group-hover:text-amber-400 transition-colors">{asset.name}</h4>
-                           <span className="text-[10px] font-black text-amber-400 bg-amber-400/5 border border-amber-400/20 px-3 py-1 rounded-full">{asset.price}</span>
-                        </div>
-                        <p className="text-slate-500 text-sm flex-1 font-light leading-relaxed">{asset.description}</p>
-                        <a href={asset.externalUrl} target="_blank" className="primary-btn w-full py-4 rounded-xl text-center text-[10px] uppercase font-black tracking-widest mt-6">Get Access</a>
-                     </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-
-            <div className="max-w-7xl mx-auto px-6"><div className="section-divider"></div></div>
-
-            {/* 5. VIDEO LIBRARY */}
-            <section id="videos-section" className="max-w-7xl mx-auto px-6">
+            {/* 6. VIDEO LIBRARY */}
+            <section id="videos-section" className="max-w-7xl mx-auto px-6 home-section">
               <div className="flex flex-col md:flex-row items-end justify-between mb-12 gap-4">
                 <div className="text-left">
                   <h2 className="text-4xl md:text-5xl font-extrabold tracking-tighter text-white">Video <span className="text-indigo-400">Library</span></h2>
                   <p className="text-slate-500 mt-2 font-light">Equipping you with tech tools for the harvest.</p>
                 </div>
-                <button onClick={() => handleNavClick('videos')} className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white transition-all">Watch All →</button>
+                <button onClick={() => handleNavClick('videos')} className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white transition-all inline-flex items-center gap-2">Watch All <ArrowRight className="w-3 h-3" /></button>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-10 reveal-grid">
                 {videos.slice(0, 1).map(v => (
                   <div key={v.id} className="glass-card rounded-[3rem] overflow-hidden bg-black/50 border-white/5 group">
                     <div className="aspect-video relative">
@@ -753,30 +769,24 @@ const App: React.FC = () => {
 
             <div className="max-w-7xl mx-auto px-6"><div className="section-divider"></div></div>
 
-            {/* 7. CTA - BOOK & SUBSCRIBE */}
-            <section id="cta-duo" className="max-w-7xl mx-auto px-6">
-              <div className="glass-card rounded-[4rem] p-10 lg:p-16 border-white/10 grid grid-cols-1 lg:grid-cols-[1fr_auto_1fr] gap-12 items-center">
-                <div className="space-y-6">
-                  <span className="text-[10px] font-black uppercase tracking-[0.3em] text-amber-400">Consulting</span>
-                  <h2 className="text-3xl md:text-5xl font-black tracking-tighter text-white leading-tight">Ready to build a <span className="text-amber-400 underline decoration-4 underline-offset-8">ministry tech strategy</span> that drives results?</h2>
-                  <p className="text-slate-300 text-base md:text-lg font-light">Book a consult and let’s map the tools, systems, and workflows your ministry needs to scale.</p>
-                  <button onClick={() => handleNavClick('services')} className="btn-amber pulse-btn px-10 py-4 rounded-2xl text-[12px] font-black uppercase tracking-[0.2em] shadow-3xl">Book Me</button>
-                </div>
-
-                <div className="hidden lg:block w-px h-52 bg-gradient-to-b from-transparent via-white/15 to-transparent"></div>
-
-                <div className="space-y-6 text-center lg:text-left">
-                  <div className="w-14 h-14 bg-white/5 rounded-2xl flex items-center justify-center text-orange-400 border border-white/5">
+            {/* 7. CTA - NEWSLETTER */}
+            <section id="cta-newsletter" className="max-w-7xl mx-auto px-6 home-section">
+              <div className="glass-card relative overflow-hidden rounded-[1.75rem] p-10 lg:p-14 border-white/10 grid grid-cols-1 lg:grid-cols-[1fr_1.2fr] gap-10 items-center themed-gradient">
+                <div className="pointer-events-none absolute -top-16 -right-10 h-40 w-40 rounded-full bg-amber-400/15 blur-3xl"></div>
+                <div className="pointer-events-none absolute -bottom-16 -left-10 h-40 w-40 rounded-full bg-indigo-500/15 blur-3xl"></div>
+                <div className="space-y-5">
+                  <div className="w-14 h-14 bg-white/5 rounded-xl flex items-center justify-center text-orange-400 border border-white/5">
                     <SocialIcon platform="substack" className="w-7 h-7" />
                   </div>
                   <div className="space-y-3">
-                    <h2 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight">Stay in the Loop</h2>
-                    <p className="text-slate-400 font-light">Get faith-based tech insights delivered straight to your inbox every week.</p>
+                    <h2 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight">Join the Community</h2>
+                    <p className="text-slate-400 font-light"> </p>
                   </div>
-                  <form className="flex flex-col sm:flex-row gap-4" onSubmit={(e) => { e.preventDefault(); window.open(settings.substackUrl, '_blank'); }}>
-                    <input required type="email" placeholder="Enter your email..." className="flex-1 bg-slate-950 border border-white/10 rounded-xl px-6 py-4 text-white focus:outline-none focus:border-orange-400 transition-all" />
-                    <button type="submit" className="bg-orange-500 text-white px-8 py-4 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-orange-600 transition-all">Join Newsletter</button>
-                  </form>
+                </div>
+                <div className="w-full flex justify-center lg:justify-end">
+                  <div className="w-full max-w-md rounded-xl border border-white/10 bg-slate-950/60 p-6 shadow-[0_20px_60px_rgba(15,23,42,0.45)]">
+                    <MailerLiteEmbed />
+                  </div>
                 </div>
               </div>
             </section>
@@ -799,19 +809,19 @@ const App: React.FC = () => {
                 </button>
               ))}
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 reveal-grid">
               {filteredArticles.map(art => (
-                <div key={art.id} className="glass-card rounded-[2.5rem] overflow-hidden flex flex-col group border-white/5">
+                <div key={art.id} className="glass-card preview-card archive-card rounded-xl overflow-hidden flex flex-col group border-white/5">
                    <div className="aspect-video overflow-hidden"><img src={art.thumbnail} className="w-full h-full object-cover group-hover:scale-105 transition-all" alt="" /></div>
                    <div className="p-8 space-y-4">
-                      <span className="text-[10px] font-bold text-amber-400 uppercase">{art.pubDate} • {art.category}</span>
+                      <span className="text-[10px] font-bold text-amber-400 uppercase">{art.pubDate} - {art.category}</span>
                       <h3 className="text-2xl font-bold text-white leading-tight group-hover:text-amber-400 transition-colors">{art.title}</h3>
                       <p className="text-slate-500 text-sm line-clamp-3 leading-relaxed">{getPreviewText(art.content, 180)}</p>
                       <button
                         onClick={() => openArticle(art)}
-                        className="text-white text-[10px] font-black uppercase tracking-widest pt-4 border-b border-white/5 hover:border-amber-400 transition-all"
+                        className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest bg-amber-400 text-slate-950 hover:bg-amber-300 transition-all shadow-[0_10px_24px_rgba(251,191,36,0.25)]"
                       >
-                        Read Full Piece →
+                        Read Full Piece <ArrowRight className="w-3 h-3" />
                       </button>
                    </div>
                 </div>
@@ -821,14 +831,14 @@ const App: React.FC = () => {
         )}
 
         {activeTab === 'article' && activeArticle && (
-          <div className="max-w-5xl mx-auto px-6 py-24 animate-in fade-in slide-in-from-bottom">
-            <div className="flex flex-col gap-6">
+          <div className="w-full px-6 py-24 animate-in fade-in slide-in-from-bottom">
+            <div className="flex flex-col gap-6 article-shell rounded-[2.5rem] p-8 md:p-12 lg:p-16 w-full">
               <div className="flex items-center justify-start">
                 <button
                   onClick={() => handleNavClick('articles')}
                   className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white inline-flex items-center gap-2"
                 >
-                  <span className="text-base leading-none">←</span>
+                  <ArrowLeft className="w-4 h-4" />
                   Back to Articles
                 </button>
               </div>
@@ -865,24 +875,45 @@ const App: React.FC = () => {
                 dangerouslySetInnerHTML={{ __html: formatArticleContent(activeArticle.content) }}
               />
 
+              <div className="border-t border-white/10 pt-6 mt-8">
+                {relatedArticles[0] && (
+                  <div className="flex items-center justify-between flex-wrap gap-3">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Next Article</span>
+                    <button
+                      onClick={() => openArticle(relatedArticles[0])}
+                      className="text-[10px] font-black uppercase tracking-widest text-amber-400 hover:text-amber-300 inline-flex items-center gap-2"
+                    >
+                      {relatedArticles[0].title}
+                      <ArrowRight className="w-3 h-3" />
+                    </button>
+                  </div>
+                )}
+              </div>
               <div className="flex flex-wrap items-center gap-4 pt-4">
                 <button
                   onClick={handleLike}
-                  className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest border border-white/10 transition-all ${engagement.liked ? 'bg-amber-400 text-slate-950' : 'text-slate-300 hover:text-white'}`}
+                  className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest border border-white/10 transition-all inline-flex items-center gap-2 ${engagement.liked ? 'bg-amber-400 text-slate-950' : 'text-slate-300 hover:text-white'}`}
                 >
-                  {engagement.liked ? '❤️ Loved' : '🤍 Love'} • {engagement.likeCount}
+                  <span className="inline-flex items-center gap-2">
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12.001 20.729l-1.449-1.31C5.4 15.36 2 12.28 2 8.498 2 5.42 4.42 3 7.498 3c1.74 0 3.41.81 4.503 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.498c0 3.782-3.4 6.862-8.552 10.93l-1.447 1.301z"/></svg>
+                    {engagement.liked ? 'Loved' : 'Love'}
+                  </span>
+                  <span className="text-slate-500">-</span>
+                  <span>{engagement.likeCount}</span>
                 </button>
                 <button
                   onClick={() => handleShare(activeArticle)}
-                  className="px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest border border-white/10 text-slate-300 hover:text-white"
+                  className="px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest border border-white/10 text-slate-300 hover:text-white inline-flex items-center gap-2"
                 >
                   <span className="inline-flex items-center gap-2">
                     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M7 10v8a1 1 0 001 1h8a1 1 0 001-1v-8" />
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 15V3m0 0l-4 4m4-4l4 4" />
                     </svg>
-                    Share • {engagement.shareCount}
+                    Share
                   </span>
+                  <span className="text-slate-500">-</span>
+                  <span>{engagement.shareCount}</span>
                 </button>
               </div>
 
@@ -940,12 +971,12 @@ const App: React.FC = () => {
                       View All
                     </button>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 reveal-grid">
                     {relatedArticles.map((article) => (
                       <button
                         key={article.id}
                         onClick={() => openArticle(article)}
-                        className="text-left glass-card rounded-[2rem] overflow-hidden border-white/5 hover:border-amber-400/30 transition-all"
+                        className="text-left glass-card preview-card rounded-xl overflow-hidden border-white/5 hover:border-amber-400/30 transition-all"
                       >
                         {article.thumbnail && (
                           <div className="aspect-[16/9] overflow-hidden">
@@ -972,12 +1003,6 @@ const App: React.FC = () => {
                 <h1 className="text-5xl md:text-6xl font-extrabold tracking-tighter text-white">The <span className="text-orange-400">Newsletter</span></h1>
                 <div className="flex flex-wrap items-center gap-3">
                   <button
-                    onClick={() => handleNavClick('support')}
-                    className="btn-amber px-8 py-3 rounded-2xl text-[10px] uppercase tracking-widest font-black pulse-btn"
-                  >
-                    Support the Mission
-                  </button>
-                  <button
                     onClick={() => setBlogPage((p) => Math.max(1, p - 1))}
                     disabled={blogPage === 1}
                     className="px-4 py-2 rounded-full border border-white/10 text-[10px] font-black uppercase tracking-widest text-slate-300 disabled:opacity-40 disabled:cursor-not-allowed hover:border-orange-400/50"
@@ -994,9 +1019,9 @@ const App: React.FC = () => {
                   </button>
                 </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 reveal-grid">
               {pagedBlogPosts.map(post => (
-                <a key={post.id} href={post.link} target="_blank" rel="noreferrer" className="glass-card rounded-[2.5rem] overflow-hidden group border-white/5">
+                <a key={post.id} href={post.link} target="_blank" rel="noreferrer" className="glass-card preview-card rounded-xl overflow-hidden group border-white/5">
                    <div className="aspect-video overflow-hidden"><img src={post.thumbnail} className="w-full h-full object-cover" alt="" /></div>
                    <div className="p-8 space-y-4">
                       <span className="text-[10px] font-bold text-slate-500 uppercase">{post.pubDate}</span>
@@ -1014,16 +1039,10 @@ const App: React.FC = () => {
           <div className="max-w-7xl mx-auto px-6 py-24 animate-in fade-in slide-in-from-bottom">
              <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6 mb-12">
                <h1 className="text-6xl font-extrabold tracking-tighter text-white">The <span className="text-indigo-400">Library</span></h1>
-               <button
-                 onClick={() => handleNavClick('support')}
-                 className="btn-amber px-8 py-3 rounded-2xl text-[10px] uppercase tracking-widest font-black pulse-btn"
-               >
-                 Support the Mission
-               </button>
              </div>
-             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 reveal-grid">
                 {videos.map(v => (
-                  <div key={v.id} className="glass-card rounded-[2.5rem] overflow-hidden bg-black border-white/5">
+                  <div key={v.id} className="glass-card preview-card rounded-xl overflow-hidden bg-black border-white/5">
                     <div className="aspect-video">
                        <iframe width="100%" height="100%" src={getYouTubeEmbedUrl(v.url) || ""} frameBorder="0" allowFullScreen></iframe>
                     </div>
@@ -1046,12 +1065,6 @@ const App: React.FC = () => {
               </div>
               <div className="flex flex-wrap items-center gap-3">
                 <button
-                  onClick={() => handleNavClick('support')}
-                  className="btn-amber px-8 py-3 rounded-2xl text-[10px] uppercase tracking-widest font-black pulse-btn"
-                >
-                  Support the Mission
-                </button>
-                <button
                   onClick={() => setPodcastPage((p) => Math.max(1, p - 1))}
                   disabled={podcastPage === 1}
                   className="px-4 py-2 rounded-full border border-white/10 text-[10px] font-black uppercase tracking-widest text-slate-300 disabled:opacity-40 disabled:cursor-not-allowed hover:border-emerald-400/50"
@@ -1069,9 +1082,9 @@ const App: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-6 md:gap-10">
+            <div className="grid grid-cols-1 gap-6 md:gap-10 reveal-grid">
               {pagedPodcastEpisodes.map(ep => (
-                <article key={ep.id} className="glass-card rounded-[2rem] md:rounded-[3rem] p-6 md:p-10 flex flex-col lg:flex-row gap-6 md:gap-10 items-start border border-white/5 hover:border-emerald-400/30 transition-all">
+                <article key={ep.id} className="glass-card preview-card rounded-2xl md:rounded-[2.5rem] p-6 md:p-10 flex flex-col lg:flex-row gap-6 md:gap-10 items-start border border-white/5 hover:border-emerald-400/30 transition-all">
                   <div className="relative hidden md:block">
                     <div className="absolute -inset-4 rounded-[2.5rem] bg-emerald-500/10 blur-2xl"></div>
                   </div>
@@ -1106,13 +1119,6 @@ const App: React.FC = () => {
           <div className="max-w-7xl mx-auto px-6 py-24 animate-in fade-in slide-in-from-bottom">
              <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6 mb-12">
                <h1 className="text-6xl font-extrabold tracking-tighter text-white">Digital <span className="text-amber-400">Hub</span></h1>
-               <button
-                 onClick={() => handleNavClick('support')}
-                 className="btn-amber px-8 py-3 rounded-2xl text-[10px] uppercase tracking-widest font-black pulse-btn inline-flex items-center gap-2"
-               >
-                 <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21s-6.716-4.35-9.33-7.85C.894 10.78 1.5 7.5 4.2 6.2c1.98-.96 4.2-.42 5.4 1.05C10.8 5.78 13.02 5.24 15 6.2c2.7 1.3 3.306 4.58 1.53 6.95C18.716 16.65 12 21 12 21z"/></svg>
-                 Support the Mission
-               </button>
              </div>
              <div className="flex flex-wrap gap-3 mb-10">
               {assetCategories.map(cat => (
@@ -1125,17 +1131,28 @@ const App: React.FC = () => {
                 </button>
               ))}
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 reveal-grid">
                 {filteredAssets.map(asset => (
-                  <div key={asset.id} className="glass-card rounded-[2.5rem] overflow-hidden border-white/5 flex flex-col">
+                  <div key={asset.id} className="glass-card preview-card asset-card rounded-xl overflow-hidden border-white/5 flex flex-col">
                      <div className="aspect-[4/3] overflow-hidden"><img src={asset.image} className="w-full h-full object-cover" alt="" /></div>
                      <div className="p-5 space-y-3 flex-1 flex flex-col">
                         <div className="flex justify-between items-center">
                            <h4 className="text-lg font-bold text-white">{asset.name}</h4>
-                           <span className="text-[10px] font-bold text-amber-400 bg-white/5 px-3 py-1 rounded-full">{asset.price}</span>
+                           <div className="flex items-center gap-2">
+                             {getAssetPaidState(asset) && (
+                               <span className="text-[10px] font-bold text-amber-400 bg-amber-400/10 px-3 py-1 rounded-full">
+                                 Paid
+                               </span>
+                             )}
+                             {getAssetPriceLabel(asset) !== 'Paid' && (
+                               <span className="text-[10px] font-bold text-amber-400 bg-amber-400/5 px-3 py-1 rounded-full">
+                                 {getAssetPriceLabel(asset)}
+                               </span>
+                             )}
+                           </div>
                         </div>
                         <p className="text-slate-500 text-sm flex-1">{asset.description}</p>
-                        <a href={asset.externalUrl} target="_blank" className="primary-btn w-full py-4 rounded-xl text-center text-[10px] uppercase font-black tracking-widest mt-6">Get Access</a>
+                        <a href={asset.externalUrl} target="_blank" className="primary-btn w-full py-4 rounded-lg text-center text-[10px] uppercase font-black tracking-widest mt-6">Get Access</a>
                      </div>
                   </div>
                 ))}
@@ -1153,16 +1170,10 @@ const App: React.FC = () => {
                 <h1 className="text-5xl md:text-6xl font-extrabold tracking-tighter text-white">Featured <span className="text-indigo-400">Work</span></h1>
                 <p className="text-slate-400 max-w-2xl">Showcasing tools, platforms, and creative builds that serve the mission.</p>
               </div>
-              <button
-                onClick={() => handleNavClick('support')}
-                className="btn-amber px-8 py-3 rounded-2xl text-[10px] uppercase tracking-widest font-black pulse-btn"
-              >
-                Support the Mission
-              </button>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 reveal-grid">
               {portfolioItems.map((item: any) => (
-                <a key={item.id} href={item.externalUrl} target="_blank" className="glass-card rounded-[2.5rem] overflow-hidden border-white/5 flex flex-col group">
+                <a key={item.id} href={item.externalUrl} target="_blank" className="glass-card preview-card rounded-xl overflow-hidden border-white/5 flex flex-col group">
                   <div className="aspect-[4/3] overflow-hidden">
                     <img src={item.image} className="w-full h-full object-cover group-hover:scale-105 transition-all" alt="" />
                   </div>
@@ -1172,7 +1183,7 @@ const App: React.FC = () => {
                     )}
                     <h4 className="text-xl font-bold text-white">{item.title}</h4>
                     <p className="text-slate-500 text-sm flex-1">{item.description}</p>
-                    <span className="text-[10px] font-black uppercase tracking-widest text-amber-400">Explore Project ???</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-amber-400 inline-flex items-center gap-2">Explore Project <ArrowRight className="w-3 h-3" /></span>
                   </div>
                 </a>
               ))}
@@ -1182,26 +1193,19 @@ const App: React.FC = () => {
 
         {activeTab === 'about' && (
           <div className="max-w-7xl mx-auto px-6 pt-24">
-            <About
-              settings={settings}
-              services={services}
-              rateCards={rateCards}
-              onBook={() => handleNavClick('services')}
-            />
+            <About settings={settings} />
           </div>
         )}
         {activeTab === 'contact' && <div className="max-w-7xl mx-auto px-6 pt-24"><Contact settings={settings} /></div>}
-        {activeTab === 'services' && <div className="max-w-7xl mx-auto px-6 pt-24"><Services services={services} rateCards={rateCards} /></div>}
-        {activeTab === 'support' && <div className="max-w-7xl mx-auto px-6 pt-24"><Support details={supportDetails} /></div>}
       </main>
 
 
 
       {/* FOOTER */}
-      <footer className="bg-slate-950 border-t border-white/5 py-24 px-6 mt-12 text-center md:text-left">
+      <footer className="bg-white border-t border-slate-200 py-24 px-6 mt-12 text-center md:text-left">
         <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-16">
           <div className="col-span-1 md:col-span-2 space-y-6">
-            <div className="text-2xl font-bold tracking-tighter text-white">Alexander <button onClick={() => handleNavClick('support')} className="text-amber-400 underline underline-offset-4 font-bold">Timilehin-Daniels</button></div>
+            <div className="text-2xl font-bold tracking-tighter text-white">Alexander Timilehin-Daniels</div>
             <p className="text-slate-500 text-sm max-w-sm leading-relaxed">Personal platform for faith-based tech reflections and ministry assets.</p>
             <div className="flex gap-4 justify-center md:justify-start">
                {SOCIAL_LINKS.map(link => (
@@ -1220,7 +1224,6 @@ const App: React.FC = () => {
               <li><button onClick={() => handleNavClick('resources')} className="hover:text-amber-400">Resource Hub</button></li>
               <li><button onClick={() => handleNavClick('substack')} className="hover:text-amber-400">Substack</button></li>
               <li><button onClick={() => handleNavClick('videos')} className="hover:text-amber-400">Video Library</button></li>
-              <li><button onClick={() => handleNavClick('support')} className="text-amber-400 font-bold underline underline-offset-4">Support</button></li>
             </ul>
           </div>
           <div className="space-y-6">
@@ -1228,7 +1231,6 @@ const App: React.FC = () => {
             <ul className="space-y-3 text-slate-500 text-xs font-bold uppercase tracking-widest">
               <li><button onClick={() => handleNavClick('about')} className="hover:text-amber-400">About</button></li>
               <li><button onClick={() => handleNavClick('contact')} className="hover:text-amber-400">Contact</button></li>
-              <li><button onClick={() => handleNavClick('booking')} className="hover:text-amber-400">Consultation</button></li>
             </ul>
           </div>
         </div>
@@ -1238,7 +1240,3 @@ const App: React.FC = () => {
 };
 
 export default App;
-
-
-
-
