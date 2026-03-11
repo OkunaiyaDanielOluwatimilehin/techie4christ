@@ -37,6 +37,7 @@ export interface Asset {
   id: string;
   name: string;
   price: string;
+  isPaid?: boolean | string;
   category: string;
   description: string;
   image: string;
@@ -90,25 +91,5 @@ export interface FeedConfig {
   rssUrl: string;
 }
 
-export interface ServiceOffering {
-  id: string;
-  title: string;
-  description: string;
-  rate: string;
-  ctaLabel?: string;
-  ctaUrl?: string;
-}
 
-export interface RateCardItem {
-  id: string;
-  label: string;
-  value: string;
-  ctaLabel?: string;
-  ctaUrl?: string;
-}
 
-export interface SupportDetail {
-  id: string;
-  label: string;
-  value: string;
-}

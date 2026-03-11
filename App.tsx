@@ -82,6 +82,7 @@ const App: React.FC = () => {
     if (path === '/podcasts') return setActiveTab('podcasts');
     if (path === '/portfolio') return setActiveTab('portfolio');
     if (path === '/substack') return setActiveTab('substack');
+    if (path === '/policy') return setActiveTab('policy');
     if (path === '/contact') return setActiveTab('contact');
     if (path === '/about') return setActiveTab('about');
     setActiveTab('home');
@@ -294,6 +295,7 @@ const App: React.FC = () => {
       podcasts: '/podcasts',
       portfolio: '/portfolio',
       substack: '/substack',
+      policy: '/policy',
       contact: '/contact',
       about: '/about',
     };
@@ -537,7 +539,6 @@ const App: React.FC = () => {
 
             <div className="max-w-7xl mx-auto px-6"><div className="section-divider"></div></div>
 
-
             {/* Promo Banner */}
             {promoItems.length > 0 && (
               <section id="promo-banner" className="w-full promo-banner">
@@ -774,18 +775,40 @@ const App: React.FC = () => {
               <div className="glass-card relative overflow-hidden rounded-[1.75rem] p-10 lg:p-14 border-white/10 grid grid-cols-1 lg:grid-cols-[1fr_1.2fr] gap-10 items-center themed-gradient">
                 <div className="pointer-events-none absolute -top-16 -right-10 h-40 w-40 rounded-full bg-amber-400/15 blur-3xl"></div>
                 <div className="pointer-events-none absolute -bottom-16 -left-10 h-40 w-40 rounded-full bg-indigo-500/15 blur-3xl"></div>
-                <div className="space-y-5">
+                <div className="space-y-6">
                   <div className="w-14 h-14 bg-white/5 rounded-xl flex items-center justify-center text-orange-400 border border-white/5">
                     <SocialIcon platform="substack" className="w-7 h-7" />
                   </div>
                   <div className="space-y-3">
                     <h2 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight">Join the Community</h2>
-                    <p className="text-slate-400 font-light"> </p>
+                    <p className="text-slate-400 font-light">The latest newsletter reflections on faith and tech.</p>
                   </div>
-                </div>
-                <div className="w-full flex justify-center lg:justify-end">
                   <div className="w-full max-w-md rounded-xl border border-white/10 bg-slate-950/60 p-6 shadow-[0_20px_60px_rgba(15,23,42,0.45)]">
                     <MailerLiteEmbed />
+                  </div>
+                </div>
+                <div className="w-full flex flex-col gap-6 lg:pl-10 lg:border-l lg:border-white/10">
+                  <div className="rounded-xl border border-white/10 bg-slate-950/40 p-6">
+                    <div className="space-y-3 text-left">
+                      <span className="text-[10px] font-black uppercase tracking-[0.3em] text-amber-400">
+                        Support The Mission
+                      </span>
+                      <h3 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight">
+                        Partner with the work
+                      </h3>
+                      <p className="text-slate-400 text-sm md:text-base leading-relaxed">
+                        Your giving helps fuel faith-driven tech resources, content, and community initiatives.
+                      </p>
+                      <a
+                        href="https://flutterwave.com/donate/tb2awms6p266"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="primary-btn inline-flex items-center gap-2 px-6 py-3 rounded-xl text-[10px] uppercase tracking-widest font-black"
+                      >
+                        Give Now
+                        <ArrowRight className="w-3 h-3" />
+                      </a>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -927,13 +950,13 @@ const App: React.FC = () => {
                     value={commentForm.name}
                     onChange={(e) => setCommentForm((prev) => ({ ...prev, name: e.target.value }))}
                     placeholder="Your name"
-                    className="w-full bg-slate-900/60 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:border-amber-400 outline-none"
+                    className="w-full bg-slate-900/60 border border-white/10 rounded-2xl px-4 py-3 text-sm text-black placeholder:text-slate-500 focus:border-amber-400 outline-none"
                   />
                   <input
                     value={commentForm.message}
                     onChange={(e) => setCommentForm((prev) => ({ ...prev, message: e.target.value }))}
                     placeholder="Write a comment..."
-                    className="w-full bg-slate-900/60 border border-white/10 rounded-2xl px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:border-amber-400 outline-none"
+                    className="w-full bg-slate-900/60 border border-white/10 rounded-2xl px-4 py-3 text-sm text-black placeholder:text-slate-500 focus:border-amber-400 outline-none"
                   />
                   <button
                     type="submit"
@@ -950,10 +973,10 @@ const App: React.FC = () => {
                   {comments.map((comment) => (
                     <div key={comment.id} className="bg-slate-900/40 border border-white/5 rounded-2xl p-4">
                       <div className="flex items-center justify-between text-xs uppercase tracking-widest text-slate-500">
-                        <span className="font-bold text-white">{comment.name}</span>
+                        <span className="font-bold text-black">{comment.name}</span>
                         <span>{new Date(comment.created_at).toLocaleDateString()}</span>
                       </div>
-                      <p className="text-sm text-slate-300 mt-2">{comment.message}</p>
+                      <p className="text-sm text-black mt-2">{comment.message}</p>
                     </div>
                   ))}
                 </div>
@@ -1196,6 +1219,55 @@ const App: React.FC = () => {
             <About settings={settings} />
           </div>
         )}
+        {activeTab === 'policy' && (
+          <div className="max-w-4xl mx-auto px-6 py-24 animate-in fade-in slide-in-from-bottom">
+            <h1 className="text-4xl md:text-5xl font-extrabold tracking-tighter text-white">Privacy Policy</h1>
+            <p className="text-slate-400 mt-4">
+              Your privacy matters. This policy explains what data we collect, how we use it, and the choices you have.
+            </p>
+            <div className="space-y-6 mt-10 text-slate-300 text-sm leading-relaxed">
+              <div>
+                <h2 className="text-lg font-bold text-white">Information we collect</h2>
+                <p className="mt-2">
+                  We collect information you provide directly, such as your name and email when you subscribe or contact us.
+                  We may also collect basic analytics data (such as page views and device/browser type) to improve the site.
+                </p>
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-white">How we use information</h2>
+                <p className="mt-2">
+                  We use your information to deliver newsletters, respond to requests, improve content, and keep the site secure.
+                  We do not sell your personal information.
+                </p>
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-white">Email subscriptions</h2>
+                <p className="mt-2">
+                  If you subscribe, you can unsubscribe anytime using the link in our emails. We use trusted email tools to manage subscriptions.
+                </p>
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-white">Third-party services</h2>
+                <p className="mt-2">
+                  We may use third-party services (for example, email providers or analytics tools) that process data on our behalf.
+                  These services are required to protect your data and use it only to provide their service.
+                </p>
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-white">Your choices</h2>
+                <p className="mt-2">
+                  You can request access, correction, or deletion of your personal data by contacting us through the site.
+                </p>
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-white">Updates</h2>
+                <p className="mt-2">
+                  We may update this policy from time to time. Material changes will be reflected on this page.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
         {activeTab === 'contact' && <div className="max-w-7xl mx-auto px-6 pt-24"><Contact settings={settings} /></div>}
       </main>
 
@@ -1231,6 +1303,7 @@ const App: React.FC = () => {
             <ul className="space-y-3 text-slate-500 text-xs font-bold uppercase tracking-widest">
               <li><button onClick={() => handleNavClick('about')} className="hover:text-amber-400">About</button></li>
               <li><button onClick={() => handleNavClick('contact')} className="hover:text-amber-400">Contact</button></li>
+              <li><button onClick={() => handleNavClick('policy')} className="hover:text-amber-400">Privacy Policy</button></li>
             </ul>
           </div>
         </div>
@@ -1240,3 +1313,6 @@ const App: React.FC = () => {
 };
 
 export default App;
+
+
+

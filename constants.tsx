@@ -3,7 +3,7 @@ import { SocialLink, SiteSettings } from './types';
 export const SOCIAL_LINKS: SocialLink[] = [
   { platform: 'Twitter', url: 'https://x.com/techie_4_christ' },
   { platform: 'LinkedIn', url: 'https://www.linkedin.com/in/techie4christ/' },
-  { platform: 'YouTube', url: 'https://youtube.com/@techie4christ' },
+  { platform: 'YouTube', url: 'https://www.youtube.com/@alex_d_techie_4_christ' },
   { platform: 'Substack', url: 'https://techie4christ.substack.com' }
 ];
 
