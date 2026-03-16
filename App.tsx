@@ -20,7 +20,7 @@ import { contentfulService } from './services/contentfulService';
 import { fetchRSSFeed, fetchPodcastFeed } from './services/rssService';
 import { addComment, addShare, getArticleEngagement, listComments, toggleLike } from './services/engagementService';
 
-const App: React.FC = () => {
+export default function App() {
   const [activeTab, setActiveTab] = useState('home');
   const navigate = useNavigate();
   const location = useLocation();
@@ -1313,9 +1313,7 @@ const App: React.FC = () => {
       <Analytics />
     </div>
   );
-};
-
-export default App;
+}
 
 
 
