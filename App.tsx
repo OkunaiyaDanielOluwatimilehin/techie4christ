@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { Analytics } from '@vercel/analytics/react';
 import Navigation from './components/Navigation';
 import Contact from './components/Contact';
 import About from './components/About';
@@ -1308,6 +1309,8 @@ const App: React.FC = () => {
           </div>
         </div>
       </footer>
+
+      <Analytics />
     </div>
   );
 };
