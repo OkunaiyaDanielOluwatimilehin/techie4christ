@@ -90,6 +90,11 @@ const MailerLiteEmbed: React.FC = () => {
 #mlb2-38091339.ml-form-embedContainer .ml-form-embedWrapper .ml-form-embedBody .ml-form-embedSubmit { margin: 0 0 20px 0; float: left; width: 100%; }
 #mlb2-38091339.ml-form-embedContainer .ml-form-embedWrapper .ml-form-embedBody .ml-form-embedSubmit button { background-color: #fbbf24 !important; border: none !important; border-radius: 10px !important; box-shadow: 0 10px 24px rgba(251,191,36,0.25) !important; color: #0f172a !important; cursor: pointer; font-family: 'Open Sans', Arial, Helvetica, sans-serif !important; font-size: 13px !important; font-weight: 800 !important; letter-spacing: 0.18em; text-transform: uppercase; line-height: 21px !important; height: auto; padding: 12px !important; width: 100% !important; box-sizing: border-box !important; }
 #mlb2-38091339.ml-form-embedContainer .ml-form-embedWrapper .ml-form-embedBody .ml-form-embedSubmit button:hover { background-color: #f59e0b !important; transform: translateY(-1px); }
+#mlb2-38091339.ml-form-embedContainer .ml-form-embedPermissionsContent p { color: var(--text); font-size: 12px; margin: 0 0 14px 0; }
+#mlb2-38091339.ml-form-embedContainer .ml-form-embedPermissionsContent p a { color: var(--accent); }
+#mlb2-38091339.ml-form-embedContainer .ml-form-embedWrapper .ml-form-successBody { background: rgba(15,23,42,0.85); border: 1px solid rgba(255,255,255,0.12); }
+#mlb2-38091339.ml-form-embedContainer .ml-form-embedWrapper .ml-form-successBody .ml-form-successContent h4 { color: #f8fafc; font-size: 22px; margin-bottom: 6px; }
+#mlb2-38091339.ml-form-embedContainer .ml-form-embedWrapper .ml-form-successBody .ml-form-successContent p { color: #cbd5f5; }
 @media only screen and (max-width: 400px){ .ml-form-embedWrapper.embedDefault, .ml-form-embedWrapper.embedPopup { width: 100%!important; } }
 </style>
 
@@ -115,7 +120,7 @@ const MailerLiteEmbed: React.FC = () => {
 
           <div class="ml-form-embedPermissions" style="">
             <div class="ml-form-embedPermissionsContent default privacy-policy">
-              <p>You can unsubscribe anytime. For more details, review our Privacy Policy.</p>
+              <p>You can unsubscribe anytime. For more details, review our <a href="/policy">Privacy Policy</a>.</p>
             </div>
           </div>
 
@@ -135,8 +140,8 @@ const MailerLiteEmbed: React.FC = () => {
 
       <div class="ml-form-successBody row-success" style="display: none">
         <div class="ml-form-successContent">
-          <h4>Thank you!</h4>
-          <p>You have successfully joined my subscriber list.</p>
+          <h4>Thanks for joining!</h4>
+          <p>Watch your inbox for the next faith + tech update.</p>
         </div>
       </div>
     </div>

@@ -6,7 +6,10 @@ const rssProxyPlugin = () => ({
   name: 'rss-proxy',
   configureServer(server) {
     server.middlewares.use(async (req, res, next) => {
-      if (!req.url || !req.url.startsWith('/rss')) return next();
+      if (!req.url) return next();
+      const isLegacy = req.url.startsWith('/rss');
+      const isApi = req.url.startsWith('/api/rss');
+      if (!isLegacy && !isApi) return next();
       try {
         const url = new URL(req.url, 'http://localhost');
         const target = url.searchParams.get('url');

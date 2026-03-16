@@ -129,7 +129,41 @@ export default function App() {
         if (cfArticles) setArticles(cfArticles);
         if (cfAssets) setAssets(cfAssets);
         if (cfVideos) setVideos(cfVideos);
-        if (cfPortfolioItems) setPortfolioItems(cfPortfolioItems);
+        if (cfPortfolioItems) {
+          setPortfolioItems(cfPortfolioItems);
+
+          // Enrich items missing an explicit image by pulling `og:image` from the project link.
+          // Runs in the background; safe to ignore failures.
+          const itemsNeedingPreview = cfPortfolioItems.filter((item: any) => {
+            const image = typeof item?.image === 'string' ? item.image.trim() : '';
+            const link = typeof item?.externalUrl === 'string' ? item.externalUrl.trim() : '';
+            return !image && /^https?:\/\//i.test(link);
+          });
+
+          if (itemsNeedingPreview.length) {
+            Promise.all(
+              itemsNeedingPreview.map(async (item: any) => {
+                try {
+                  const res = await fetch(`/api/og?url=${encodeURIComponent(item.externalUrl)}`);
+                  if (!res.ok) return { id: item.id, image: '' };
+                  const data = (await res.json()) as { image?: string };
+                  return { id: item.id, image: typeof data.image === 'string' ? data.image : '' };
+                } catch {
+                  return { id: item.id, image: '' };
+                }
+              })
+            ).then((updates) => {
+              const map = new Map(updates.filter((u) => u.image).map((u) => [u.id, u.image]));
+              if (map.size === 0) return;
+              setPortfolioItems((prev) =>
+                prev.map((item: any) => {
+                  const nextImage = map.get(item.id);
+                  return nextImage ? { ...item, image: nextImage } : item;
+                })
+              );
+            });
+          }
+        }
 
         const substackFeed = cfSubstackFeeds?.[0]?.rssUrl || '';
         const podcastFeed = cfPodcastFeeds?.[0]?.rssUrl || '';
@@ -889,7 +923,7 @@ export default function App() {
               </div>
 
               {activeArticle.thumbnail && (
-                <div className="aspect-[16/9] rounded-[2rem] overflow-hidden border border-white/5">
+                <div className="aspect-[16/9] max-h-[360px] md:max-h-[420px] rounded-[2rem] overflow-hidden border border-white/5">
                   <img src={activeArticle.thumbnail} alt="" className="w-full h-full object-cover" />
                 </div>
               )}
@@ -1198,8 +1232,14 @@ export default function App() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 reveal-grid">
               {portfolioItems.map((item: any) => (
                 <a key={item.id} href={item.externalUrl} target="_blank" className="glass-card preview-card rounded-xl overflow-hidden border-white/5 flex flex-col group">
-                  <div className="aspect-[4/3] overflow-hidden">
-                    <img src={item.image} className="w-full h-full object-cover group-hover:scale-105 transition-all" alt="" />
+                  <div className="h-56 sm:h-64 md:h-72 overflow-hidden bg-slate-950/30">
+                    {item.image ? (
+                      <img src={item.image} className="w-full h-full object-cover group-hover:scale-105 transition-all" alt="" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-[10px] font-black uppercase tracking-widest text-slate-500">
+                        Preview Loading
+                      </div>
+                    )}
                   </div>
                   <div className="p-5 space-y-3 flex-1 flex flex-col">
                     {item.tag && (

@@ -5,10 +5,7 @@ import {
   InternalArticle,
   PortfolioItem,
   PodcastEpisode,
-  RateCardItem,
-  ServiceOffering,
   SiteSettings,
-  SupportDetail,
   YouTubeVideo,
 } from '../types';
 import { DEFAULT_SITE_SETTINGS } from '../constants';
@@ -42,9 +39,6 @@ const podcastType = (import.meta.env.VITE_CONTENTFUL_PODCAST_TYPE as string | un
 const substackFeedType = (import.meta.env.VITE_CONTENTFUL_SUBSTACK_FEED_TYPE as string | undefined) || 'substackFeed';
 const podcastFeedType = (import.meta.env.VITE_CONTENTFUL_PODCAST_FEED_TYPE as string | undefined) || 'podcastFeed';
 const portfolioType = (import.meta.env.VITE_CONTENTFUL_PORTFOLIO_TYPE as string | undefined) || 'portfolio';
-const serviceType = (import.meta.env.VITE_CONTENTFUL_SERVICE_TYPE as string | undefined) || 'service';
-const rateCardType = (import.meta.env.VITE_CONTENTFUL_RATE_CARD_TYPE as string | undefined) || 'rateCard';
-const supportType = (import.meta.env.VITE_CONTENTFUL_SUPPORT_TYPE as string | undefined) || 'support';
 
 const buildAssetMap = (data?: ContentfulResponse) => {
   const map = new Map<string, string>();
@@ -161,6 +155,7 @@ const renderRichText = (value: unknown, assetMap: Map<string, string>) => {
 
 const normalizeUrl = (value: string) => {
   if (!value) return '';
+  if (value.startsWith('//')) return `https:${value}`;
   return /^https?:\/\//i.test(value) ? value : `https://${value}`;
 };
 
@@ -228,10 +223,19 @@ const mapAssets = (data: ContentfulResponse | null): HubAsset[] => {
   const assetMap = buildAssetMap(data);
   return data.items.map((item) => {
     const fields = item.fields || {};
+    const price = asText(fields.price, asText(fields.Price, ''));
+    const isPaidField = fields.isPaid ?? fields.IsPaid;
+    const isPaid =
+      typeof isPaidField === 'boolean'
+        ? isPaidField
+        : typeof isPaidField === 'string'
+        ? /^yes$/i.test(isPaidField.trim())
+        : price.trim().length > 0 && !/^free$/i.test(price.trim());
     return {
       id: item.sys.id,
       name: asText(fields.name, asText(fields.title, 'Untitled')),
-      price: asText(fields.price, 'Free'),
+      price,
+      isPaid,
       category: asText(fields.category, 'Resource'),
       description: asText(fields.description, ''),
       image:
@@ -349,54 +353,16 @@ const mapPortfolioItems = (data: ContentfulResponse | null): PortfolioItem[] => 
       title: asText(fields.name, asText(fields.title, 'Untitled')),
       description: asText(fields.description, ''),
       image:
-        resolveAssetUrl(fields.image, assetMap) ||
-        resolveAssetUrl(fields.thumbnail, assetMap),
+        resolveAssetFieldUrl(fields.image, assetMap) ||
+        resolveAssetFieldUrl(fields.thumbnail, assetMap),
       externalUrl: normalizeUrl(asText(fields.externalUrl, asText(fields.link, '#'))),
       tag: asText(fields.tag, ''),
     };
   });
 };
 
-const mapServices = (data: ContentfulResponse | null): ServiceOffering[] => {
-  if (!data) return [];
-  return data.items.map((item) => {
-    const fields = item.fields || {};
-    return {
-      id: item.sys.id,
-      title: asText(fields.title, asText(fields.name, 'Service')),
-      description: asText(fields.description, ''),
-      rate: asText(fields.rate, asText(fields.price, '')),
-      ctaLabel: asText(fields.ctaLabel, asText(fields.buttonLabel, '')),
-      ctaUrl: asText(fields.ctaUrl, asText(fields.buttonUrl, asText(fields.link, ''))),
-    };
-  });
-};
 
-const mapRateCards = (data: ContentfulResponse | null): RateCardItem[] => {
-  if (!data) return [];
-  return data.items.map((item) => {
-    const fields = item.fields || {};
-    return {
-      id: item.sys.id,
-      label: asText(fields.label, asText(fields.title, 'Rate')),
-      value: asText(fields.value, asText(fields.amount, '')),
-      ctaLabel: asText(fields.ctaLabel, asText(fields.buttonLabel, '')),
-      ctaUrl: asText(fields.ctaUrl, asText(fields.buttonUrl, asText(fields.link, ''))),
-    };
-  });
-};
 
-const mapSupportDetails = (data: ContentfulResponse | null): SupportDetail[] => {
-  if (!data) return [];
-  return data.items.map((item) => {
-    const fields = item.fields || {};
-    return {
-      id: item.sys.id,
-      label: asText(fields.label, asText(fields.title, 'Detail')),
-      value: asText(fields.value, ''),
-    };
-  });
-};
 
 export const contentfulService = {
   getArticles: async () => {
@@ -470,33 +436,6 @@ export const contentfulService = {
       return mapPortfolioItems(data);
     } catch (err) {
       console.error('Contentful portfolio error:', err);
-      return [];
-    }
-  },
-  getServices: async () => {
-    try {
-      const data = await fetchEntries(serviceType);
-      return mapServices(data);
-    } catch (err) {
-      console.error('Contentful services error:', err);
-      return [];
-    }
-  },
-  getRateCards: async () => {
-    try {
-      const data = await fetchEntries(rateCardType);
-      return mapRateCards(data);
-    } catch (err) {
-      console.error('Contentful rate cards error:', err);
-      return [];
-    }
-  },
-  getSupportDetails: async () => {
-    try {
-      const data = await fetchEntries(supportType);
-      return mapSupportDetails(data);
-    } catch (err) {
-      console.error('Contentful support error:', err);
       return [];
     }
   },

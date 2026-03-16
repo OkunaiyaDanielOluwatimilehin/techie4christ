@@ -47,8 +47,9 @@ const parseImage = (item: Element) => {
 
 const fetchViaProxy = async (url: string) => {
   console.info('[RSS] Fetch', url);
-  const proxyBase = import.meta.env.PROD ? '/api/rss' : '/rss';
-  const proxyRes = await fetch(`${proxyBase}?url=${encodeURIComponent(url)}`);
+  // Use the Vercel serverless function in production (`api/rss.ts`).
+  // In dev, `vite.config.ts` also handles this path.
+  const proxyRes = await fetch(`/api/rss?url=${encodeURIComponent(url)}`);
   console.info('[RSS] Proxy status', proxyRes.status, proxyRes.statusText);
   if (proxyRes.ok) return proxyRes;
 
