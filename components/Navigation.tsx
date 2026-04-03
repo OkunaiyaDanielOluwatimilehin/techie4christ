@@ -7,7 +7,13 @@ interface NavigationProps {
 
 const Navigation: React.FC<NavigationProps> = ({ activeTab, setActiveTab }) => {
   const [isScrolled, setIsScrolled] = useState(false);
-  const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const getInitialTheme = (): 'light' | 'dark' => {
+    if (typeof window === 'undefined') return 'dark';
+    const stored = window.localStorage.getItem('t4c-theme');
+    if (stored === 'light' || stored === 'dark') return stored;
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  };
+  const [theme, setTheme] = useState<'light' | 'dark'>(getInitialTheme);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isHubOpen, setIsHubOpen] = useState(false);
   
@@ -20,17 +26,11 @@ const Navigation: React.FC<NavigationProps> = ({ activeTab, setActiveTab }) => {
   }, []);
 
   useEffect(() => {
-    const stored = localStorage.getItem('t4c-theme');
-    if (stored === 'light' || stored === 'dark') {
-      setTheme(stored);
-      document.documentElement.setAttribute('data-theme', stored);
-      return;
+    document.documentElement.setAttribute('data-theme', theme);
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('t4c-theme', theme);
     }
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    const initial = prefersDark ? 'dark' : 'light';
-    setTheme(initial);
-    document.documentElement.setAttribute('data-theme', initial);
-  }, []);
+  }, [theme]);
 
   const toggleTheme = () => {
     const next = theme === 'dark' ? 'light' : 'dark';
@@ -46,18 +46,63 @@ const Navigation: React.FC<NavigationProps> = ({ activeTab, setActiveTab }) => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const navIconSet: Record<string, React.ReactNode> = {
+    home: (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l9-7 9 7v9a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2v-4H9v4a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2z" />
+      </svg>
+    ),
+    articles: (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 16h8M8 12h8M8 8h8M6 4h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z" />
+      </svg>
+    ),
+    podcasts: (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 5a3 3 0 0 0-3 3v4a3 3 0 0 0 6 0V8a3 3 0 0 0-3-3z" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 12a5 5 0 0 0 10 0" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 20h6" />
+      </svg>
+    ),
+    about: (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4zm0 0c-4 0-6 2-6 6h12c0-4-2-6-6-6z" />
+      </svg>
+    ),
+  };
+  const hubIconSet: Record<string, React.ReactNode> = {
+    resources: (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.5">
+        <rect x="4" y="5" width="16" height="14" rx="2" />
+        <path d="M6 10h12" />
+        <path d="M6 14h12" />
+      </svg>
+    ),
+    videos: (
+      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <rect x="4" y="5" width="16" height="14" rx="2" />
+        <path d="M10 8l6 4-6 4z" fill="currentColor" stroke="none" />
+      </svg>
+    ),
+    portfolio: (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.5">
+        <rect x="5" y="8" width="14" height="10" rx="2" />
+        <path d="M8 8V6h8v2" />
+      </svg>
+    ),
+  };
+
   const navItems = [
-    { id: 'home', label: 'Home' },
-    { id: 'articles', label: 'Articles' },
-    { id: 'portfolio', label: 'Portfolio' },
-    { id: 'about', label: 'About' },
+    { id: 'home', label: 'Home', icon: navIconSet.home },
+    { id: 'articles', label: 'Articles', icon: navIconSet.articles },
+    { id: 'podcasts', label: 'Podcasts', icon: navIconSet.podcasts },
+    { id: 'about', label: 'About', icon: navIconSet.about },
   ];
 
   const hubItems = [
-    { id: 'videos', label: 'Videos' },
-    { id: 'podcasts', label: 'Podcasts' },
-    { id: 'resources', label: 'Digital Assets' },
-    { id: 'substack', label: 'Substack' }
+    { id: 'resources', label: 'Digital Assets', icon: hubIconSet.resources },
+    { id: 'videos', label: 'Video Library', icon: hubIconSet.videos },
+    { id: 'portfolio', label: 'Portfolio', icon: hubIconSet.portfolio },
   ];
 
   const navClass = isScrolled
@@ -71,18 +116,13 @@ const Navigation: React.FC<NavigationProps> = ({ activeTab, setActiveTab }) => {
   const navLinkClass = (isActive: boolean) =>
     `text-[10px] font-bold uppercase tracking-[0.2em] transition-all hover:text-amber-400 ${isActive ? 'text-amber-400' : theme === 'dark' ? 'text-slate-400' : 'text-slate-700'}`;
 
-  const dropdownClass =
-    theme === 'dark'
-      ? 'bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-2xl p-2 w-48 shadow-2xl'
-      : 'bg-white/95 backdrop-blur-xl border border-slate-200 rounded-2xl p-2 w-48 shadow-2xl';
+  const dropdownClass = 'bg-slate-950/95 backdrop-blur-2xl border border-slate-900/60 rounded-2xl p-2 w-56 shadow-[0_20px_120px_rgba(2,6,23,0.65)] text-slate-100';
 
   const dropdownItemClass = (isActive: boolean) =>
-    `w-full text-left px-4 py-3 text-[10px] font-bold uppercase tracking-widest rounded-xl transition-all ${
+    `w-full text-left px-4 py-3 text-[10px] font-bold uppercase tracking-widest rounded-xl transition-all flex items-center gap-3 ${
       isActive
         ? 'bg-amber-400 text-slate-950'
-        : theme === 'dark'
-        ? 'text-slate-400 hover:bg-white/5 hover:text-white'
-        : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'
+        : 'text-slate-100 hover:bg-white/10 hover:text-white'
     }`;
 
   return (
@@ -101,13 +141,16 @@ const Navigation: React.FC<NavigationProps> = ({ activeTab, setActiveTab }) => {
                 onClick={() => handleNavClick(item.id)} 
                 className={navLinkClass(activeTab === item.id)}
               >
-                {item.label}
+                <span className="flex items-center gap-2">
+                  <span className="text-base">{item.icon}</span>
+                  <span>{item.label}</span>
+                </span>
               </button>
             ))}
             
             <div className="relative group" onMouseEnter={() => setIsHubOpen(true)} onMouseLeave={() => setIsHubOpen(false)}>
-              <button 
-                className={`text-[10px] font-bold uppercase tracking-[0.2em] transition-all flex items-center gap-1 ${['videos', 'podcasts', 'resources', 'substack'].includes(activeTab) ? 'text-amber-400' : theme === 'dark' ? 'text-slate-400' : 'text-slate-700'}`}
+              <button
+                className={`text-[10px] font-bold uppercase tracking-[0.2em] transition-all flex items-center gap-1 ${['videos', 'resources', 'portfolio'].includes(activeTab) ? 'text-amber-400' : theme === 'dark' ? 'text-slate-400' : 'text-slate-700'}`}
               >
                 Resource Hub
                 <svg className={`w-3 h-3 transition-transform ${isHubOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M19 9l-7 7-7-7"/></svg>
@@ -121,7 +164,10 @@ const Navigation: React.FC<NavigationProps> = ({ activeTab, setActiveTab }) => {
                       onClick={() => handleNavClick(item.id)} 
                       className={dropdownItemClass(activeTab === item.id)}
                     >
-                      {item.label}
+                      <span className="flex items-center gap-3">
+                        {item.icon}
+                        <span>{item.label}</span>
+                      </span>
                     </button>
                   ))}
                 </div>
@@ -172,7 +218,14 @@ const Navigation: React.FC<NavigationProps> = ({ activeTab, setActiveTab }) => {
         <div className={`absolute inset-0 backdrop-blur-2xl flex flex-col items-center justify-center p-10 overflow-y-auto no-scrollbar ${theme === 'dark' ? 'bg-slate-950/98' : 'bg-white/95'}`}>
           <div className="flex flex-col items-center space-y-6 w-full">
             {navItems.map(item => (
-              <button key={item.id} onClick={() => handleNavClick(item.id)} className={`text-2xl font-bold ${activeTab === item.id ? 'text-amber-400' : 'text-slate-400'}`}>{item.label}</button>
+              <button
+                key={item.id}
+                onClick={() => handleNavClick(item.id)}
+                className={`text-2xl font-bold flex items-center gap-3 ${activeTab === item.id ? 'text-amber-400' : 'text-slate-400'}`}
+              >
+                <span className="text-base">{item.icon}</span>
+                <span>{item.label}</span>
+              </button>
             ))}
             <div className="w-full h-px bg-white/5 my-4"></div>
             {hubItems.map(item => (

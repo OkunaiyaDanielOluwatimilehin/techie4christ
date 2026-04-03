@@ -15,9 +15,9 @@ import {
   DEFAULT_SITE_SETTINGS,
   SOCIAL_LINKS
 } from './constants';
-import { Asset, BlogPost, YouTubeVideo, SiteSettings, PodcastEpisode, InternalArticle } from './types';
+import { Asset, YouTubeVideo, SiteSettings, PodcastEpisode, InternalArticle } from './types';
 import { contentfulService } from './services/contentfulService';
-import { fetchRSSFeed, fetchPodcastFeed } from './services/rssService';
+import { fetchPodcastFeed } from './services/rssService';
 import { addComment, addShare, getArticleEngagement, listComments, toggleLike } from './services/engagementService';
 
 export default function App() {
@@ -35,11 +35,9 @@ export default function App() {
   const [videos, setVideos] = useState<YouTubeVideo[]>([]);
 
   const [podcastEpisodes, setPodcastEpisodes] = useState<PodcastEpisode[]>([]);
-  const [blogPosts, setBlogPosts] = useState<BlogPost[]>([]);
   const [portfolioItems, setPortfolioItems] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [podcastPage, setPodcastPage] = useState(1);
-  const [blogPage, setBlogPage] = useState(1);
   const [articleFilter, setArticleFilter] = useState('All');
   const [assetFilter, setAssetFilter] = useState('All');
   const [activeArticle, setActiveArticle] = useState<InternalArticle | null>(null);
@@ -57,7 +55,6 @@ export default function App() {
 
   // Persistence Effects
   useEffect(() => setPodcastPage(1), [podcastEpisodes.length]);
-  useEffect(() => setBlogPage(1), [blogPosts.length, isMobile]);
 
   useEffect(() => {
     const media = window.matchMedia('(max-width: 768px)');
@@ -82,7 +79,6 @@ export default function App() {
     if (path === '/videos') return setActiveTab('videos');
     if (path === '/podcasts') return setActiveTab('podcasts');
     if (path === '/portfolio') return setActiveTab('portfolio');
-    if (path === '/substack') return setActiveTab('substack');
     if (path === '/policy') return setActiveTab('policy');
     if (path === '/contact') return setActiveTab('contact');
     if (path === '/about') return setActiveTab('about');
@@ -112,7 +108,6 @@ export default function App() {
           cfArticles,
           cfAssets,
           cfVideos,
-          cfSubstackFeeds,
           cfPodcastFeeds,
           cfPortfolioItems,
         ] = await Promise.all([
@@ -120,7 +115,6 @@ export default function App() {
           contentfulService.getArticles(),
           contentfulService.getAssets(),
           contentfulService.getVideos(),
-          contentfulService.getSubstackFeeds(),
           contentfulService.getPodcastFeeds(),
           contentfulService.getPortfolioItems(),
         ]);
@@ -165,17 +159,14 @@ export default function App() {
           }
         }
 
-        const substackFeed = cfSubstackFeeds?.[0]?.rssUrl || '';
         const podcastFeed = cfPodcastFeeds?.[0]?.rssUrl || '';
         if (!podcastFeed) console.warn('[Podcast] No podcastFeed URL found in Contentful.');
-
-        const [rssPosts, rssPods] = await Promise.all([
-          substackFeed ? fetchRSSFeed(substackFeed, 'Substack') : Promise.resolve([]),
-          podcastFeed ? fetchPodcastFeed(podcastFeed) : Promise.resolve([]),
-        ]);
-
-        if (rssPosts.length) setBlogPosts(rssPosts);
-        if (rssPods.length) setPodcastEpisodes(rssPods);
+        if (podcastFeed) {
+          const rssPods = await fetchPodcastFeed(podcastFeed);
+          if (rssPods.length) setPodcastEpisodes(rssPods);
+        } else {
+          setPodcastEpisodes([]);
+        }
       } catch (err) {
         console.error("Contentful error:", err);
       } finally {
@@ -412,6 +403,20 @@ export default function App() {
     </svg>
   );
 
+  const TagIcon = ({ className = '' }: { className?: string }) => (
+    <i className={`fa-solid fa-tag ${className}`.trim()} aria-hidden="true" />
+  );
+
+  const TagBadge = ({ label }: { label: string }) => (
+    <span
+      className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/5 px-4 py-1 text-[10px] font-semibold uppercase tracking-[0.35em] text-white transition hover:border-amber-300 hover:bg-amber-400/10 hover:text-white focus-visible:outline focus-visible:outline-amber-400 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-100"
+      role="button"
+    >
+      <TagIcon className="text-[10px]" />
+      {label}
+    </span>
+  );
+
 
   const relatedArticles = activeArticle
     ? articles
@@ -420,9 +425,6 @@ export default function App() {
         .slice(0, 3)
     : [];
 
-  const BLOGS_PER_PAGE = 6;
-  const totalBlogPages = Math.max(1, Math.ceil(blogPosts.length / BLOGS_PER_PAGE));
-  const pagedBlogPosts = blogPosts.slice((blogPage - 1) * BLOGS_PER_PAGE, blogPage * BLOGS_PER_PAGE);
 
 
   const promoItems = useMemo(() => {
@@ -1242,9 +1244,7 @@ export default function App() {
                     )}
                   </div>
                   <div className="p-5 space-y-3 flex-1 flex flex-col">
-                    {item.tag && (
-                      <span className="text-[10px] font-black uppercase tracking-widest text-indigo-300">{item.tag}</span>
-                    )}
+                    {item.tag && <TagBadge label={item.tag} />}
                     <h4 className="text-xl font-bold text-white">{item.title}</h4>
                     <p className="text-slate-500 text-sm flex-1">{item.description}</p>
                     <span className="text-[10px] font-black uppercase tracking-widest text-amber-400 inline-flex items-center gap-2">Explore Project <ArrowRight className="w-3 h-3" /></span>

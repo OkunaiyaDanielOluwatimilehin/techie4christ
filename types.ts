@@ -26,11 +26,15 @@ export interface BlogPost {
 export interface InternalArticle {
   id: string;
   title: string;
+  subtext?: string;
+  excerpt?: string;
   content: string;
   thumbnail: string;
   pubDate: string;
   category: string;
   slug: string;
+  series?: string;
+  tags?: string[];
 }
 
 export interface Asset {
@@ -78,7 +82,7 @@ export interface SiteSettings {
   heroImage: string;
   heroImageSecondary?: string;
   bio: string;
-  substackUrl: string;
+  aboutHtml?: string;
   formspreeContactId: string;
   calendlyUrl: string;
   formspreeBookingId: string;

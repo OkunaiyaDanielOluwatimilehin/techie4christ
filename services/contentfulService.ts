@@ -36,7 +36,6 @@ const videoType = (import.meta.env.VITE_CONTENTFUL_VIDEO_TYPE as string | undefi
 const settingsType = (import.meta.env.VITE_CONTENTFUL_SETTINGS_TYPE as string | undefined) || 'settings';
 const blogType = (import.meta.env.VITE_CONTENTFUL_BLOG_TYPE as string | undefined) || 'blogPost';
 const podcastType = (import.meta.env.VITE_CONTENTFUL_PODCAST_TYPE as string | undefined) || 'podcastEpisode';
-const substackFeedType = (import.meta.env.VITE_CONTENTFUL_SUBSTACK_FEED_TYPE as string | undefined) || 'substackFeed';
 const podcastFeedType = (import.meta.env.VITE_CONTENTFUL_PODCAST_FEED_TYPE as string | undefined) || 'podcastFeed';
 const portfolioType = (import.meta.env.VITE_CONTENTFUL_PORTFOLIO_TYPE as string | undefined) || 'portfolio';
 
@@ -193,29 +192,86 @@ const fetchEntries = async (contentType: string) => {
   return data;
 };
 
+const resolveSeriesLabel = (value: unknown): string => {
+  if (!value) return '';
+  if (typeof value === 'string') return value;
+  if (Array.isArray(value) && value.length > 0) {
+    return resolveSeriesLabel(value[0]);
+  }
+  const maybeFields = value as { fields?: Record<string, unknown> } | null;
+  if (maybeFields?.fields) {
+    if (maybeFields.fields.title) return asText(maybeFields.fields.title, '');
+    if (maybeFields.fields.name) return asText(maybeFields.fields.name, '');
+    if (maybeFields.fields.seriesTitle) return asText(maybeFields.fields.seriesTitle, '');
+  }
+  return '';
+};
+
+const resolveTagValue = (value: unknown): string => {
+  if (!value) return '';
+  if (typeof value === 'string') return value.trim();
+  if (typeof value === 'object') {
+    const maybeFields = value as { fields?: Record<string, unknown> } | null;
+    if (maybeFields?.fields) {
+      if (maybeFields.fields.name) return asText(maybeFields.fields.name, '').trim();
+      if (maybeFields.fields.title) return asText(maybeFields.fields.title, '').trim();
+    }
+  }
+  return asText(value, '').trim();
+};
+
+const resolveTags = (value: unknown): string[] => {
+  if (!value) return [];
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => resolveTagValue(item))
+      .map((tag) => tag.split(',').map((part) => part.trim()))
+      .flat()
+      .filter(Boolean);
+  }
+  const normalized = resolveTagValue(value);
+  if (!normalized) return [];
+  return normalized
+    .split(',')
+    .map((part) => part.trim())
+    .filter(Boolean);
+};
+
+const parseDateValue = (value: string) => {
+  const time = new Date(value).getTime();
+  return Number.isNaN(time) ? 0 : time;
+};
+
 const mapArticles = (data: ContentfulResponse | null): InternalArticle[] => {
   if (!data) return [];
   const assetMap = buildAssetMap(data);
-  return data.items.map((item) => {
-    const fields = item.fields || {};
-    const slugField = fields.slug as { current?: string } | string | undefined;
-    return {
-      id: item.sys.id,
-      title: asText(fields.title, asText(fields.name, 'Untitled')),
-      content:
-        renderRichText(fields.body, assetMap) ||
-        asText(fields.excerpt, asText(fields.content, '')),
-      thumbnail:
-        resolveAssetFieldUrl(fields.featuredImage, assetMap) ||
-        resolveAssetFieldUrl(fields.featureImage, assetMap) ||
-        resolveAssetFieldUrl(fields.thumbnail, assetMap) ||
-        resolveAssetFieldUrl(fields.image, assetMap),
-      pubDate: asText(fields.publishDate, asText(fields.publishedAt, asText(fields.date, ''))),
-      category: asText(fields.category, 'General'),
-      slug:
-        (typeof slugField === 'string' ? slugField : slugField?.current) || item.sys.id,
-    };
-  });
+  return data.items
+    .map((item) => {
+      const fields = item.fields || {};
+      const slugField = fields.slug as { current?: string } | string | undefined;
+      const excerptText = asText(fields.excerpt, asText(fields.subtext, ''));
+      return {
+        id: item.sys.id,
+    title: asText(fields.title, asText(fields.name, 'Untitled')),
+    content:
+      renderRichText(fields.body, assetMap) ||
+      asText(fields.excerpt, asText(fields.content, '')),
+    thumbnail:
+      resolveAssetFieldUrl(fields.featuredImage, assetMap) ||
+      resolveAssetFieldUrl(fields.featureImage, assetMap) ||
+      resolveAssetFieldUrl(fields.thumbnail, assetMap) ||
+      resolveAssetFieldUrl(fields.image, assetMap),
+    pubDate: asText(fields.publishDate, asText(fields.publishedAt, asText(fields.date, ''))),
+    category: asText(fields.category, '').trim(),
+    slug:
+      (typeof slugField === 'string' ? slugField : slugField?.current) || item.sys.id,
+    excerpt: excerptText,
+    subtext: asText(fields.subtext, excerptText),
+    series: resolveSeriesLabel(fields.series),
+    tags: resolveTags(fields.tags ?? fields.tag),
+  };
+    })
+    .sort((a, b) => parseDateValue(b.pubDate) - parseDateValue(a.pubDate));
 };
 
 const mapAssets = (data: ContentfulResponse | null): HubAsset[] => {
@@ -315,7 +371,6 @@ const mapSettings = (data: ContentfulResponse | null): SiteSettings => {
       resolveAssetUrl(fields.heroImageSecondary, assetMap) ||
       asText(fields.heroImageSecondary, DEFAULT_SITE_SETTINGS.heroImageSecondary || DEFAULT_SITE_SETTINGS.heroImage),
     bio: asText(fields.bio, DEFAULT_SITE_SETTINGS.bio),
-    substackUrl: asText(fields.substackUrl, DEFAULT_SITE_SETTINGS.substackUrl),
     formspreeContactId: asText(
       fields.formspreeContactId,
       DEFAULT_SITE_SETTINGS.formspreeContactId
@@ -407,15 +462,6 @@ export const contentfulService = {
       return mapPodcastEpisodes(data);
     } catch (err) {
       console.error('Contentful podcast error:', err);
-      return [];
-    }
-  },
-  getSubstackFeeds: async () => {
-    try {
-      const data = await fetchEntries(substackFeedType);
-      return mapFeeds(data);
-    } catch (err) {
-      console.error('Contentful substack feed error:', err);
       return [];
     }
   },
