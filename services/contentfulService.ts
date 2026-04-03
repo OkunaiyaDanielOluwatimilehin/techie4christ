@@ -409,7 +409,9 @@ const mapPortfolioItems = (data: ContentfulResponse | null): PortfolioItem[] => 
       description: asText(fields.description, ''),
       image:
         resolveAssetFieldUrl(fields.image, assetMap) ||
-        resolveAssetFieldUrl(fields.thumbnail, assetMap),
+        resolveAssetFieldUrl(fields.thumbnail, assetMap) ||
+        resolveAssetFieldUrl(fields.featuredImage, assetMap) ||
+        resolveAssetFieldUrl(fields.featureImage, assetMap),
       externalUrl: normalizeUrl(asText(fields.externalUrl, asText(fields.link, '#'))),
       tag: asText(fields.tag, ''),
     };
