@@ -87,6 +87,9 @@ export interface SiteSettings {
   calendlyUrl: string;
   formspreeBookingId: string;
   bookingMethod: 'automatic' | 'manual' | 'both';
+  substackUrl?: string;
+  substackFeedUrl?: string;
+  podcastRssUrl?: string;
 }
 
 export interface FeedConfig {

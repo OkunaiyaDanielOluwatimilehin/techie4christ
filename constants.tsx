@@ -16,6 +16,9 @@ export const DEFAULT_SITE_SETTINGS: SiteSettings = {
   calendlyUrl: "https://calendly.com/techie4christ", 
   formspreeContactId: "xoqorder",
   formspreeBookingId: "xoqorder",
-  bookingMethod: 'both'
+  bookingMethod: 'both',
+  substackUrl: "https://techie4christ.substack.com",
+  substackFeedUrl: "https://techie4christ.substack.com/feed",
+  podcastRssUrl: "",
 };
 
