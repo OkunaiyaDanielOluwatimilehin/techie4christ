@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { SOCIAL_LINKS } from '../constants';
-import { SocialIcon } from './SocialIcons';
+import SocialPreviewLinks from './SocialPreviewLinks';
 import { SiteSettings } from '../types';
 
 interface ContactProps {
@@ -87,20 +87,7 @@ const Contact: React.FC<ContactProps> = ({ settings }) => {
             </div>
           </div>
 
-          <div className="flex gap-4">
-            {SOCIAL_LINKS.map(link => (
-              <a 
-                key={link.platform} 
-                href={link.url} 
-                target="_blank" 
-                rel="noreferrer"
-                className="w-10 h-10 rounded-xl bg-slate-900 border border-white/5 flex items-center justify-center text-slate-500 hover:text-amber-400 hover:border-amber-400/30 transition-all"
-                title={link.platform}
-              >
-                <SocialIcon platform={link.platform} />
-              </a>
-            ))}
-          </div>
+          <SocialPreviewLinks links={SOCIAL_LINKS} compact />
         </div>
 
         <div className="glass-card p-8 rounded-[2rem] border-white/10">

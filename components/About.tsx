@@ -1,6 +1,6 @@
-import React from 'react';
+﻿import React from 'react';
 import { SOCIAL_LINKS } from '../constants';
-import { SocialIcon } from './SocialIcons';
+import SocialPreviewLinks from './SocialPreviewLinks';
 import { SiteSettings } from '../types';
 
 interface AboutProps {
@@ -18,7 +18,7 @@ const About: React.FC<AboutProps> = ({ settings }) => {
           {settings.bio}
         </p>
         <p className='text-slate-400 text-sm md:text-base max-w-3xl leading-relaxed'>
-          My mission is to help faith-driven organizations build systems that scale � from digital
+          My mission is to help faith-driven organizations build systems that scale — from digital
           infrastructure and content workflows to training teams that steward technology for Kingdom impact.
         </p>
       </div>
@@ -29,20 +29,7 @@ const About: React.FC<AboutProps> = ({ settings }) => {
           Follow along for insights on ministry tech, digital mission, and practical tools for
           the Church. You can also reach me directly through the contact page.
         </p>
-        <div className='flex flex-wrap gap-3'>
-          {SOCIAL_LINKS.map(link => (
-            <a
-              key={link.platform}
-              href={link.url}
-              target='_blank'
-              rel='noreferrer'
-              className='w-11 h-11 rounded-2xl bg-slate-900 border border-white/5 flex items-center justify-center text-slate-500 hover:text-amber-400 hover:border-amber-400/30 transition-all'
-              title={link.platform}
-            >
-              <SocialIcon platform={link.platform} />
-            </a>
-          ))}
-        </div>
+        <SocialPreviewLinks links={SOCIAL_LINKS} />
       </div>
 
     </div>

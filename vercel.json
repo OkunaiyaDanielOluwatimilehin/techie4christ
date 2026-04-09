@@ -4,6 +4,12 @@
   "framework": "vite",
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/$1" },
+    { "source": "/articles", "destination": "/articles/index.html" },
+    { "source": "/articles/:slug", "destination": "/articles/:slug/index.html" },
+    { "source": "/resources", "destination": "/resources/index.html" },
+    { "source": "/resources/:slug", "destination": "/resources/:slug/index.html" },
+    { "source": "/portfolio", "destination": "/portfolio/index.html" },
+    { "source": "/portfolio/:slug", "destination": "/portfolio/:slug/index.html" },
     { "source": "/(.*)", "destination": "/" }
   ]
 }

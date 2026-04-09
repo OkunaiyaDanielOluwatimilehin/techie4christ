@@ -5,6 +5,16 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Techie 4 Christ - Faith Meets Technology</title>
+  <meta name="description" content="Faith-driven technology, ministry reflections, tools, and articles from Techie 4 Christ.">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Techie 4 Christ - Faith Meets Technology">
+  <meta property="og:description" content="Faith-driven technology, ministry reflections, tools, and articles from Techie 4 Christ.">
+  <meta property="og:image" content="/android-chrome-512x512.png">
+  <meta property="og:url" content="/">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Techie 4 Christ - Faith Meets Technology">
+  <meta name="twitter:description" content="Faith-driven technology, ministry reflections, tools, and articles from Techie 4 Christ.">
+  <meta name="twitter:image" content="/android-chrome-512x512.png">
   <link rel="icon" type="image/x-icon" href="/favicon.ico">
   <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
   <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
@@ -317,29 +327,34 @@
     .article-body h2 { font-size: 1.65rem; }
     .article-body h3 { font-size: 1.35rem; }
     .article-body h4 { font-size: 1.15rem; }
-    .article-body ul, .article-body ol { margin: 1rem 0 1.5rem 1.5rem; }
+    .article-body ul,
+    .article-body ol {
+      margin: 1rem 0 1.5rem;
+      padding-left: 1.5rem;
+    }
+    .article-body ul { list-style: disc; }
+    .article-body ol { list-style: decimal; }
     .article-body li { margin: 0.4rem 0; }
+    .article-body li > p { margin: 0.2rem 0; }
     .article-body a { color: var(--accent); text-decoration: underline; text-underline-offset: 4px; }
     .article-body blockquote {
       margin: 1.8rem 0;
-      padding: 0.35rem 0 0.35rem 2rem;
+      padding: 0.35rem 0 0.35rem 1.25rem;
       border: 0;
+      border-left: 3px solid rgba(245, 158, 11, 0.85);
       background: transparent;
       border-radius: 0;
       position: relative;
     }
     .article-body blockquote::before {
-      content: '|';
-      position: absolute;
-      left: 0;
-      top: 0.3rem;
-      font-size: 2.4rem;
-      line-height: 1;
-      color: rgba(245, 158, 11, 0.85);
-      font-weight: 700;
+      content: none;
     }
     .article-body blockquote strong { font-weight: 700; }
-    .article-body blockquote p { margin: 0.4rem 0; font-size: 1.05rem; }
+    .article-body blockquote p {
+      margin: 0.4rem 0;
+      font-size: 1.05rem;
+      white-space: pre-wrap;
+    }
     .article-body hr {
       height: 1px;
       border: 0;

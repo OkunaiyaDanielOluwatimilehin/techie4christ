@@ -43,6 +43,8 @@ export default function App() {
   const [assetFilter, setAssetFilter] = useState('All');
   const [assetPage, setAssetPage] = useState(0);
   const [activeArticle, setActiveArticle] = useState<InternalArticle | null>(null);
+  const [activeAsset, setActiveAsset] = useState<Asset | null>(null);
+  const [activePortfolioItem, setActivePortfolioItem] = useState<PortfolioItem | null>(null);
   const [archivePage, setArchivePage] = useState(0);
   const [engagement, setEngagement] = useState({ likeCount: 0, shareCount: 0, liked: false });
   const [comments, setComments] = useState<{ id: string; name: string; message: string; created_at: string }[]>([]);
@@ -76,6 +78,14 @@ export default function App() {
     const path = location.pathname;
     if (path.startsWith('/articles/')) {
       setActiveTab('article');
+      return;
+    }
+    if (path.startsWith('/resources/')) {
+      setActiveTab('resource-detail');
+      return;
+    }
+    if (path.startsWith('/portfolio/')) {
+      setActiveTab('portfolio-detail');
       return;
     }
     if (path === '/articles') return setActiveTab('articles');
@@ -197,6 +207,34 @@ export default function App() {
     }
   }, [location.pathname, articles]);
 
+  useEffect(() => {
+    if (!location.pathname.startsWith('/resources/')) {
+      setActiveAsset(null);
+      return;
+    }
+    const slugParameter = decodeURIComponent(location.pathname.replace('/resources/', '').trim());
+    if (!slugParameter) return;
+    const normalized = slugParameter.trim().toLowerCase();
+    const found = assets.find(
+      (asset) => getAssetSlug(asset).toLowerCase() === normalized || asset.id.toLowerCase() === normalized
+    );
+    setActiveAsset(found || null);
+  }, [location.pathname, assets]);
+
+  useEffect(() => {
+    if (!location.pathname.startsWith('/portfolio/')) {
+      setActivePortfolioItem(null);
+      return;
+    }
+    const slugParameter = decodeURIComponent(location.pathname.replace('/portfolio/', '').trim());
+    if (!slugParameter) return;
+    const normalized = slugParameter.trim().toLowerCase();
+    const found = portfolioItems.find(
+      (item) => getPortfolioSlug(item).toLowerCase() === normalized || item.id.toLowerCase() === normalized
+    );
+    setActivePortfolioItem(found || null);
+  }, [location.pathname, portfolioItems]);
+
 
   const loadEngagementForArticle = async (article: InternalArticle) => {
     try {
@@ -222,7 +260,7 @@ export default function App() {
     await loadEngagementForArticle(article);
   };
 
-  const handleShare = async (article: InternalArticle) => {
+  const handleArticleShare = async (article: InternalArticle) => {
     const shareData = {
       title: article.title,
       text: article.content?.slice(0, 140) || article.title,
@@ -238,6 +276,20 @@ export default function App() {
       await addShare(article.id, 'web');
       const data = await getArticleEngagement(article.id);
       setEngagement(data);
+    } catch (err) {
+      console.error('Share failed', err);
+    }
+  };
+
+  const handlePageShare = async (title: string, text: string, url: string) => {
+    const shareData = { title, text, url };
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+      } else {
+        await navigator.clipboard.writeText(shareData.url);
+        alert('Link copied to clipboard.');
+      }
     } catch (err) {
       console.error('Share failed', err);
     }
@@ -265,11 +317,59 @@ export default function App() {
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;');
-    const withParagraphs = escaped
-      .replace(/\r\n/g, '\n')
-      .replace(/\n{2,}/g, '</p><p>')
-      .replace(/\n/g, '<br />');
-    return `<p>${withParagraphs}</p>`;
+
+    const lines = escaped.replace(/\r\n/g, '\n').split('\n');
+    const blocks: string[] = [];
+    const paragraphLines: string[] = [];
+    const listItems: string[] = [];
+    let listType: 'ul' | 'ol' | null = null;
+
+    const flushParagraph = () => {
+      if (!paragraphLines.length) return;
+      blocks.push(`<p>${paragraphLines.join('<br />')}</p>`);
+      paragraphLines.length = 0;
+    };
+
+    const flushList = () => {
+      if (!listType || !listItems.length) return;
+      blocks.push(`<${listType}>${listItems.map((item) => `<li>${item}</li>`).join('')}</${listType}>`);
+      listItems.length = 0;
+      listType = null;
+    };
+
+    lines.forEach((line) => {
+      const trimmedLine = line.trim();
+      const bulletMatch = trimmedLine.match(/^[-*•]\s+(.+)$/);
+      const orderedMatch = trimmedLine.match(/^\d+[\.\)]\s+(.+)$/);
+
+      if (!trimmedLine) {
+        flushParagraph();
+        flushList();
+        return;
+      }
+
+      if (bulletMatch) {
+        flushParagraph();
+        listType = 'ul';
+        listItems.push(bulletMatch[1]);
+        return;
+      }
+
+      if (orderedMatch) {
+        flushParagraph();
+        listType = 'ol';
+        listItems.push(orderedMatch[1]);
+        return;
+      }
+
+      flushList();
+      paragraphLines.push(trimmedLine);
+    });
+
+    flushParagraph();
+    flushList();
+
+    return blocks.join('');
   };
 
   const stripHtml = (value: string) => value.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
@@ -454,6 +554,16 @@ export default function App() {
     }
     return getAssetPaidState(asset) ? 'Paid' : 'Free';
   };
+
+  const slugify = (value: string) =>
+    value
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'item';
+
+  const getAssetSlug = (asset: Asset) => slugify(asset.name || asset.id);
+  const getPortfolioSlug = (item: PortfolioItem) => slugify(item.title || item.id);
 
   const ASSETS_PER_PAGE = 9;
   const totalAssetPages = Math.max(1, Math.ceil(filteredAssets.length / ASSETS_PER_PAGE));
@@ -1311,72 +1421,6 @@ export default function App() {
                 dangerouslySetInnerHTML={{ __html: formatArticleContent(activeArticle.content) }}
               />
 
-              {(seriesRecommendations.length > 0 || tagRecommendations.length > 0) && (
-                <div className="w-full space-y-8 mt-8">
-                  {seriesRecommendations.length > 0 && (
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <h3 className="text-xs font-black uppercase tracking-[0.3em] text-slate-400">
-                          {seriesDisplayLabel ? `More from the ${seriesDisplayLabel} Series` : 'Series Connections'}
-                        </h3>
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {seriesRecommendations.map((article) => (
-                          <button
-                            key={`series-${article.id}`}
-                            onClick={() => openArticle(article)}
-                            className="text-left glass-card preview-card rounded-xl overflow-hidden border-white/5 hover:border-amber-400/30 transition-all"
-                          >
-                            {article.thumbnail && (
-                              <div className="aspect-[16/9] overflow-hidden bg-slate-900">
-                                <img src={article.thumbnail} alt={article.title} className="w-full h-full object-cover" />
-                              </div>
-                            )}
-                            <div className="p-4 space-y-2">
-                              <h4 className="text-lg font-bold text-white leading-tight">{article.title}</h4>
-                              <p className="text-[10px] uppercase tracking-[0.35em] text-slate-500">
-                                Series: {normalizeSeriesLabel(article.series)}
-                              </p>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {tagRecommendations.length > 0 && (
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <h3 className="text-xs font-black uppercase tracking-[0.3em] text-slate-400">Shared Tags</h3>
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {tagRecommendations.map((article) => {
-                          const sharedTags = getArticleTags(article).filter((tag) => activeArticleTagSet.has(tag));
-                          return (
-                            <button
-                              key={`tag-${article.id}`}
-                              onClick={() => openArticle(article)}
-                              className="text-left glass-card preview-card rounded-xl overflow-hidden border-white/5 hover:border-amber-400/30 transition-all"
-                            >
-                              {article.thumbnail && (
-                                <div className="aspect-[16/9] overflow-hidden bg-slate-900">
-                                  <img src={article.thumbnail} alt={article.title} className="w-full h-full object-cover" />
-                                </div>
-                              )}
-                              <div className="p-4 space-y-2">
-                                <h4 className="text-lg font-bold text-white leading-tight">{article.title}</h4>
-                                <p className="text-[10px] uppercase tracking-[0.35em] text-slate-500">
-                                  {sharedTags.length > 0 ? sharedTags.join(', ') : 'Related tags'}
-                                </p>
-                              </div>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
               <div className="border-t border-white/10 pt-6">
                 {nextArticle && (
                   <div className="flex items-center justify-between flex-wrap gap-3">
@@ -1404,7 +1448,7 @@ export default function App() {
                   <span>{engagement.likeCount}</span>
                 </button>
                 <button
-                  onClick={() => handleShare(activeArticle)}
+                  onClick={() => handleArticleShare(activeArticle)}
                   className="px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest border border-white/10 text-slate-300 hover:text-white inline-flex items-center gap-2"
                 >
                   <span className="inline-flex items-center gap-2">
@@ -1476,6 +1520,92 @@ export default function App() {
                       </button>
                     ))}
                   </div>
+                </div>
+              )}
+
+              {(seriesRecommendations.length > 0 || tagRecommendations.length > 0) && (
+                <div className="w-full border-t border-white/10 mt-8 pt-8 space-y-6">
+                  <div className="flex items-center justify-between gap-3">
+                    <h3 className="text-xs font-black uppercase tracking-[0.3em] text-slate-400">
+                      Related Reading
+                    </h3>
+                    <span className="text-[10px] font-black uppercase tracking-[0.35em] text-slate-500">
+                      Compact preview cards
+                    </span>
+                  </div>
+                  {seriesRecommendations.length > 0 && (
+                    <div className="space-y-3">
+                      <p className="text-[10px] font-black uppercase tracking-[0.35em] text-slate-500">
+                        {seriesDisplayLabel ? `More from ${seriesDisplayLabel}` : 'Series Connections'}
+                      </p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                        {seriesRecommendations.map((article) => (
+                          <button
+                            key={`series-${article.id}`}
+                            onClick={() => openArticle(article)}
+                            className="text-left glass-card preview-card rounded-2xl overflow-hidden border-white/5 hover:border-amber-400/30 transition-all flex items-stretch gap-3 p-2 sm:p-2.5"
+                          >
+                            <div className="w-24 h-20 sm:w-28 sm:h-24 shrink-0 overflow-hidden rounded-xl bg-slate-900">
+                              {article.thumbnail ? (
+                                <img src={article.thumbnail} alt={article.title} className="h-full w-full object-cover" />
+                              ) : (
+                                <div className="h-full w-full bg-gradient-to-br from-amber-400/20 to-slate-900/20" />
+                              )}
+                            </div>
+                            <div className="min-w-0 flex-1 py-1 pr-1 space-y-1">
+                              <p className="text-[9px] font-black uppercase tracking-[0.35em] text-amber-300">
+                                Series
+                              </p>
+                              <h4 className="text-sm font-bold text-white leading-snug line-clamp-2">
+                                {article.title}
+                              </h4>
+                              <p className="text-[10px] text-slate-400 leading-relaxed line-clamp-2">
+                                {getPreviewText(article.excerpt || article.content, 72)}
+                              </p>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {tagRecommendations.length > 0 && (
+                    <div className="space-y-3">
+                      <p className="text-[10px] font-black uppercase tracking-[0.35em] text-slate-500">
+                        Shared Tags
+                      </p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                        {tagRecommendations.map((article) => {
+                          const sharedTags = getArticleTags(article).filter((tag) => activeArticleTagSet.has(tag));
+                          return (
+                            <button
+                              key={`tag-${article.id}`}
+                              onClick={() => openArticle(article)}
+                              className="text-left glass-card preview-card rounded-2xl overflow-hidden border-white/5 hover:border-amber-400/30 transition-all flex items-stretch gap-3 p-2 sm:p-2.5"
+                            >
+                            <div className="w-24 h-20 sm:w-28 sm:h-24 shrink-0 overflow-hidden rounded-xl bg-slate-900">
+                                {article.thumbnail ? (
+                                  <img src={article.thumbnail} alt={article.title} className="h-full w-full object-cover" />
+                                ) : (
+                                  <div className="h-full w-full bg-gradient-to-br from-slate-700/30 to-slate-900/20" />
+                                )}
+                              </div>
+                              <div className="min-w-0 flex-1 py-1 pr-1 space-y-1">
+                                <p className="text-[9px] font-black uppercase tracking-[0.35em] text-amber-300">
+                                  Related
+                                </p>
+                                <h4 className="text-sm font-bold text-white leading-snug line-clamp-2">
+                                  {article.title}
+                                </h4>
+                                <p className="text-[10px] text-slate-400 leading-relaxed line-clamp-2">
+                                  {sharedTags.length > 0 ? sharedTags.join(' / ') : 'Related tags'}
+                                </p>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -1563,14 +1693,95 @@ export default function App() {
           </div>
         )}
 
+        {activeTab === 'resource-detail' && activeAsset && (
+          <div className="max-w-7xl mx-auto px-6 py-24 animate-in fade-in slide-in-from-bottom space-y-10">
+            <div className="flex items-center justify-between gap-4">
+              <button
+                onClick={() => handleNavClick('resources')}
+                className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white inline-flex items-center gap-2"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Back to Hub
+              </button>
+              <button
+                type="button"
+                onClick={() => handlePageShare(
+                  `${activeAsset.name} | Techie 4 Christ`,
+                  activeAsset.description || `${getAssetPriceLabel(activeAsset)} resource from Techie 4 Christ.`,
+                  `${window.location.origin}/resources/${encodeURIComponent(getAssetSlug(activeAsset))}`
+                )}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-white/10 text-[10px] font-black uppercase tracking-widest text-slate-300 hover:border-amber-400/40 hover:text-white"
+              >
+                Share Resource
+                <ArrowRight className="w-3 h-3" />
+              </button>
+            </div>
+            <div className="glass-card rounded-[2.5rem] overflow-hidden border border-white/10 bg-slate-900/70">
+              <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr]">
+                <div className="bg-slate-950/80">
+                  {activeAsset.image ? (
+                    <img src={activeAsset.image} alt={activeAsset.name} className="w-full h-full object-cover min-h-[320px] lg:min-h-[520px]" />
+                  ) : (
+                    <div className="min-h-[320px] lg:min-h-[520px] flex items-center justify-center text-slate-500">
+                      No preview image
+                    </div>
+                  )}
+                </div>
+                <div className="p-8 md:p-12 lg:p-14 space-y-6">
+                  <div className="space-y-3">
+                    <span className="inline-flex items-center rounded-full border border-amber-400/30 bg-amber-400/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.28em] text-amber-300">
+                      {getAssetPriceLabel(activeAsset)}
+                    </span>
+                    <h1 className="text-4xl md:text-5xl font-extrabold tracking-tighter text-white">{activeAsset.name}</h1>
+                    <p className="text-slate-300 leading-relaxed text-base md:text-lg">{activeAsset.description}</p>
+                  </div>
+                  <div className="flex flex-wrap gap-3">
+                    <span className="inline-flex items-center rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-300">
+                      {activeAsset.category}
+                    </span>
+                    {activeAsset.platform && (
+                      <span className="inline-flex items-center rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-300">
+                        {activeAsset.platform}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3 pt-2">
+                    <a
+                      href={activeAsset.externalUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-2 px-5 py-3 rounded-full bg-amber-400 text-slate-950 text-[10px] font-black uppercase tracking-widest"
+                    >
+                      Open Resource
+                      <ArrowRight className="w-3 h-3" />
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {activeTab === 'resources' && (
           <div className="max-w-7xl mx-auto px-6 py-24 animate-in fade-in slide-in-from-bottom space-y-12">
             <div className="space-y-6">
-              <div>
+              <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6">
                 <h1 className="text-6xl font-extrabold tracking-tighter text-white">Digital <span className="text-amber-400">Hub</span></h1>
                 <p className="text-slate-400 mt-2 max-w-3xl">
                   Explore templates, guides, and media resources with quick payment filters so you can jump straight into free downloads or premium tools.
                 </p>
+                <button
+                  type="button"
+                  onClick={() => handlePageShare(
+                    'Digital Hub | Techie 4 Christ',
+                    'Templates, guides, and media resources from Techie 4 Christ.',
+                    `${window.location.origin}/resources`
+                  )}
+                  className="inline-flex items-center gap-2 self-start px-4 py-2 rounded-full border border-white/10 text-[10px] font-black uppercase tracking-widest text-slate-300 hover:border-amber-400/40 hover:text-white"
+                >
+                  Share Hub
+                  <ArrowRight className="w-3 h-3" />
+                </button>
               </div>
               <div className="flex flex-wrap items-center gap-3">
                 <span className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Filter by</span>
@@ -1600,7 +1811,16 @@ export default function App() {
                 {pagedAssets.map((asset) => (
                   <article
                     key={asset.id}
-                    className="glass-card preview-card group rounded-[2rem] overflow-hidden border border-white/10 bg-slate-900/70 flex flex-col justify-between transition hover:-translate-y-0.5"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => navigate(`/resources/${encodeURIComponent(getAssetSlug(asset))}`)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        navigate(`/resources/${encodeURIComponent(getAssetSlug(asset))}`);
+                      }
+                    }}
+                    className="glass-card preview-card group rounded-[2rem] overflow-hidden border border-white/10 bg-slate-900/70 flex flex-col justify-between transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-amber-400 focus-visible:outline-offset-2"
                   >
                     {asset.image && (
                       <div className="overflow-hidden">
@@ -1637,6 +1857,7 @@ export default function App() {
                           target="_blank"
                           rel="noreferrer"
                           aria-label={`Open ${asset.name}`}
+                          onClick={(event) => event.stopPropagation()}
                           className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-amber-400 text-slate-950 shadow-[0_10px_24px_rgba(251,191,36,0.25)] transition hover:-translate-y-0.5"
                         >
                           <ArrowRight className="w-3.5 h-3.5" />
@@ -1668,24 +1889,103 @@ export default function App() {
           </div>
         )}
 
+        {activeTab === 'portfolio-detail' && activePortfolioItem && (
+          <div className="max-w-7xl mx-auto px-6 py-24 animate-in fade-in slide-in-from-bottom space-y-10">
+            <div className="flex items-center justify-between gap-4">
+              <button
+                onClick={() => handleNavClick('portfolio')}
+                className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white inline-flex items-center gap-2"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Back to Portfolio
+              </button>
+              <button
+                type="button"
+                onClick={() => handlePageShare(
+                  `${activePortfolioItem.title} | Techie 4 Christ`,
+                  activePortfolioItem.description || 'Portfolio preview from Techie 4 Christ.',
+                  `${window.location.origin}/portfolio/${encodeURIComponent(getPortfolioSlug(activePortfolioItem))}`
+                )}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-white/10 text-[10px] font-black uppercase tracking-widest text-slate-300 hover:border-amber-400/40 hover:text-white"
+              >
+                Share Work
+                <ArrowRight className="w-3 h-3" />
+              </button>
+            </div>
+            <div className="glass-card rounded-[2.5rem] overflow-hidden border border-white/10 bg-slate-900/70">
+              <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr]">
+                <div className="bg-slate-950/80">
+                  {activePortfolioItem.image ? (
+                    <img src={activePortfolioItem.image} alt={activePortfolioItem.title} className="w-full h-full object-cover min-h-[320px] lg:min-h-[520px]" />
+                  ) : (
+                    <div className="min-h-[320px] lg:min-h-[520px] flex items-center justify-center text-slate-500">
+                      No preview image
+                    </div>
+                  )}
+                </div>
+                <div className="p-8 md:p-12 lg:p-14 space-y-6">
+                  <div className="space-y-3">
+                    {activePortfolioItem.tag && (
+                      <span className="inline-flex items-center rounded-full border border-indigo-400/30 bg-indigo-400/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.28em] text-indigo-300">
+                        {activePortfolioItem.tag}
+                      </span>
+                    )}
+                    <h1 className="text-4xl md:text-5xl font-extrabold tracking-tighter text-white">{activePortfolioItem.title}</h1>
+                    <p className="text-slate-300 leading-relaxed text-base md:text-lg">{activePortfolioItem.description}</p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3 pt-2">
+                    <a
+                      href={activePortfolioItem.externalUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-2 px-5 py-3 rounded-full bg-amber-400 text-slate-950 text-[10px] font-black uppercase tracking-widest"
+                    >
+                      Open Work
+                      <ArrowRight className="w-3 h-3" />
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {activeTab === 'portfolio' && (
           <div className="max-w-7xl mx-auto px-6 py-24 animate-in fade-in slide-in-from-bottom space-y-12">
             <div className="space-y-6">
-              <div>
+              <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6">
                 <h1 className="text-6xl font-extrabold tracking-tighter text-white">Featured <span className="text-indigo-400">Work</span></h1>
                 <p className="text-slate-400 mt-2 max-w-3xl">
                   Showcasing tools, products, and digital builds from Contentful with clear visual previews and project-type markers.
                 </p>
+                <button
+                  type="button"
+                  onClick={() => handlePageShare(
+                    'Featured Work | Techie 4 Christ',
+                    'Digital builds, products, and project previews from Techie 4 Christ.',
+                    `${window.location.origin}/portfolio`
+                  )}
+                  className="inline-flex items-center gap-2 self-start px-4 py-2 rounded-full border border-white/10 text-[10px] font-black uppercase tracking-widest text-slate-300 hover:border-amber-400/40 hover:text-white"
+                >
+                  Share Portfolio
+                  <ArrowRight className="w-3 h-3" />
+                </button>
               </div>
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 reveal-grid">
               {portfolioItems.map((item) => (
-                <a
+                <article
                   key={item.id}
-                  href={item.externalUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="glass-card preview-card group rounded-[2rem] overflow-hidden border border-white/10 bg-slate-900/70 flex flex-col justify-between transition hover:-translate-y-0.5"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => navigate(`/portfolio/${encodeURIComponent(getPortfolioSlug(item))}`)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      navigate(`/portfolio/${encodeURIComponent(getPortfolioSlug(item))}`);
+                    }
+                  }}
+                  className="glass-card preview-card group rounded-[2rem] overflow-hidden border border-white/10 bg-slate-900/70 flex flex-col justify-between transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-amber-400 focus-visible:outline-offset-2"
                 >
                   <div className="overflow-hidden">
                     <div className="aspect-[4/3] bg-slate-950/80">
@@ -1725,7 +2025,7 @@ export default function App() {
                       </span>
                     </div>
                   </div>
-                </a>
+                </article>
               ))}
             </div>
           </div>
@@ -1798,7 +2098,7 @@ export default function App() {
             <p className="text-slate-400 text-sm max-w-sm leading-relaxed">Personal platform for faith-based tech reflections and ministry assets.</p>
             <div className="flex gap-4 justify-center md:justify-start">
                {SOCIAL_LINKS.map(link => (
-                 <a key={link.platform} href={link.url} target="_blank" className="text-slate-500 hover:text-white transition-colors">
+                 <a key={link.platform} href={link.url} target="_blank" rel="noreferrer" className="text-slate-500 hover:text-white transition-colors">
                    <SocialIcon platform={link.platform} className="w-5 h-5" />
                  </a>
                ))}
