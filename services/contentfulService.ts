@@ -152,6 +152,20 @@ const renderRichText = (value: unknown, assetMap: Map<string, string>) => {
   return renderRichTextNode(value, assetMap);
 };
 
+const stripHtml = (value: string) =>
+  value
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const asRichTextText = (value: unknown, assetMap: Map<string, string>, fallback = '') => {
+  if (typeof value === 'string') return value.trim();
+  if (!value) return fallback;
+  const rendered = renderRichText(value, assetMap);
+  const text = stripHtml(rendered);
+  return text || fallback;
+};
+
 const normalizeUrl = (value: string) => {
   if (!value) return '';
   if (value.startsWith('//')) return `https:${value}`;
@@ -293,7 +307,8 @@ const mapAssets = (data: ContentfulResponse | null): HubAsset[] => {
       price,
       isPaid,
       category: asText(fields.category, 'Resource'),
-      description: asText(fields.description, ''),
+      description: asRichTextText(fields.description, assetMap, ''),
+      tags: resolveTags(fields.tags ?? fields.tag),
       image:
         resolveAssetUrl(fields.image, assetMap) ||
         resolveAssetUrl(fields.thumbnail, assetMap),
@@ -406,7 +421,7 @@ const mapPortfolioItems = (data: ContentfulResponse | null): PortfolioItem[] => 
     return {
       id: item.sys.id,
       title: asText(fields.name, asText(fields.title, 'Untitled')),
-      description: asText(fields.description, ''),
+      description: asRichTextText(fields.description, assetMap, ''),
       image:
         resolveAssetFieldUrl(fields.image, assetMap) ||
         resolveAssetFieldUrl(fields.thumbnail, assetMap) ||

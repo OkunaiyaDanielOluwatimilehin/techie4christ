@@ -261,10 +261,12 @@ export default function App() {
   };
 
   const handleArticleShare = async (article: InternalArticle) => {
+    const slug = article.slug?.trim() || article.id;
+    const canonicalUrl = `${window.location.origin}/articles/${encodeURIComponent(slug)}`;
     const shareData = {
       title: article.title,
       text: article.content?.slice(0, 140) || article.title,
-      url: window.location.href,
+      url: canonicalUrl,
     };
     try {
       if (navigator.share) {
@@ -555,6 +557,13 @@ export default function App() {
     return getAssetPaidState(asset) ? 'Paid' : 'Free';
   };
 
+  const getAssetTags = (asset: Asset) => {
+    const tags = [...(asset.tags ?? []), asset.category, asset.platform]
+      .map((tag) => tag.trim())
+      .filter(Boolean);
+    return Array.from(new Set(tags));
+  };
+
   const slugify = (value: string) =>
     value
       .toLowerCase()
@@ -603,6 +612,81 @@ export default function App() {
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.7" d="M12 3v18M16.5 7.5c0-1.657-2.015-3-4.5-3S7.5 5.843 7.5 7.5 9.515 10.5 12 10.5s4.5 1.343 4.5 3-2.015 3-4.5 3-4.5-1.343-4.5-3" />
     </svg>
   );
+
+  const ShareIcon = ({ className = 'w-3.5 h-3.5' }: { className?: string }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M7 12l10-7m0 0v5m0-5h-5M7 12l10 7m0 0v-5m0 5h-5" />
+    </svg>
+  );
+
+  const renderDetailDescription = (text: string) => {
+    const cleaned = text?.trim() || '';
+    if (!cleaned) return null;
+
+    const paragraphChunks = cleaned
+      .split(/\n{2,}/)
+      .map((part) => part.trim())
+      .filter(Boolean);
+
+    const sections = paragraphChunks.length > 0 ? paragraphChunks : [cleaned];
+    const featureItems: string[] = [];
+    const bodyParagraphs: string[] = [];
+
+    sections.forEach((section) => {
+      const featuresIndex = section.indexOf('Features:');
+      if (featuresIndex >= 0) {
+        const intro = section.slice(0, featuresIndex).trim().replace(/[.:]\s*$/, '');
+        if (intro) bodyParagraphs.push(intro);
+
+        const featureText = section.slice(featuresIndex + 'Features:'.length).trim();
+        featureText
+          .split(/[•\n]+|\.\s+/)
+          .map((part) => part.trim().replace(/\s+/g, ' '))
+          .filter(Boolean)
+          .forEach((item) => featureItems.push(item.replace(/\.+$/, '')));
+        return;
+      }
+
+      const sentenceBlocks = section
+        .split(/\.\s+/)
+        .map((part) => part.trim().replace(/\.+$/, ''))
+        .filter(Boolean);
+
+      if (sentenceBlocks.length > 1) {
+        bodyParagraphs.push(sentenceBlocks.shift() || '');
+        sentenceBlocks.forEach((sentence) => featureItems.push(sentence));
+        return;
+      }
+
+      bodyParagraphs.push(section);
+    });
+
+    return (
+      <div className="space-y-5">
+        {bodyParagraphs.map((paragraph) => (
+          <p
+            key={paragraph}
+            className="text-sm md:text-base text-slate-300 leading-8 md:leading-9 max-w-4xl whitespace-pre-line"
+          >
+            {paragraph}
+          </p>
+        ))}
+        {featureItems.length > 0 && (
+          <div className="grid gap-3 max-w-4xl">
+            <p className="text-[10px] font-black uppercase tracking-[0.35em] text-slate-500">Highlights</p>
+            <div className="grid gap-3">
+              {featureItems.map((item) => (
+                <div key={item} className="flex items-start gap-3 text-sm md:text-base text-slate-300 leading-8">
+                  <span className="mt-2 inline-block h-1.5 w-1.5 rounded-none bg-amber-300 shrink-0" />
+                  <span className="whitespace-pre-line">{item}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   const PortfolioIcon = ({
     tag,
@@ -1041,34 +1125,43 @@ export default function App() {
                        <img src={asset.image} className="w-full h-full object-cover group-hover:scale-105 transition-all" alt="" />
                       </div>
                      </div>
-                     <div className="p-4 sm:p-5 flex-1 flex flex-col gap-3 md:gap-4">
+                     <div className="p-5 md:p-6 flex-1 flex flex-col gap-5">
                         <h4 className="text-2xl font-bold text-white leading-tight line-clamp-2">{asset.name}</h4>
-                        <p className="text-slate-400 text-sm leading-relaxed flex-1 line-clamp-2">
+                        <p className="text-slate-400 text-sm md:text-[15px] leading-7 flex-1 line-clamp-3 whitespace-pre-line">
                           {asset.description}
                         </p>
                         <div className="flex flex-wrap gap-2">
-                          <span className="inline-flex items-center rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.18em] text-slate-300">
+                          {getAssetTags(asset).slice(0, 3).map((tag) => (
+                            <span
+                              key={tag}
+                              className="inline-flex items-center rounded-none border border-white/10 bg-white/5 px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.18em] text-slate-300"
+                            >
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <span className="inline-flex items-center rounded-none border border-white/10 bg-white/5 px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.18em] text-slate-300">
                             {getAssetPriceLabel(asset)}
                           </span>
                         </div>
-                        <div className="mt-auto flex items-center justify-between pt-2">
+                        <div className="mt-auto flex items-center justify-between pt-3">
                           <div className="flex items-center gap-2 text-slate-500">
-                            <span className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/5">
+                            <span className="inline-flex h-8 w-8 items-center justify-center rounded-none border border-white/10 bg-white/5">
                               <PriceIcon className="h-3.5 w-3.5" />
                             </span>
-                            <span className="inline-flex h-8 min-w-8 items-center justify-center rounded-full border border-white/10 bg-white/5 px-2 text-[9px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+                            <span className="inline-flex h-8 min-w-8 items-center justify-center rounded-none border border-white/10 bg-white/5 px-2 text-[9px] font-semibold uppercase tracking-[0.12em] text-slate-400">
                               {getAssetPriceLabel(asset)}
                             </span>
                           </div>
-                          <a
-                            href={asset.externalUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            aria-label={`Open ${asset.name}`}
-                            className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-amber-400 text-slate-950 shadow-[0_10px_24px_rgba(251,191,36,0.25)] transition hover:-translate-y-0.5"
+                          <button
+                            type="button"
+                            onClick={() => navigate(`/resources/${encodeURIComponent(getAssetSlug(asset))}`)}
+                            aria-label={`View details for ${asset.name}`}
+                            className="inline-flex h-9 items-center justify-center rounded-none bg-amber-400 px-4 text-slate-950 text-[10px] font-black uppercase tracking-widest shadow-[0_10px_24px_rgba(251,191,36,0.25)] transition hover:-translate-y-0.5"
                           >
-                            <ArrowRight className="w-3.5 h-3.5" />
-                          </a>
+                            View Details
+                          </button>
                         </div>
                      </div>
                   </article>
@@ -1694,7 +1787,7 @@ export default function App() {
         )}
 
         {activeTab === 'resource-detail' && activeAsset && (
-          <div className="max-w-7xl mx-auto px-6 py-24 animate-in fade-in slide-in-from-bottom space-y-10">
+          <div className="max-w-screen-2xl mx-auto px-6 py-24 animate-in fade-in slide-in-from-bottom space-y-10">
             <div className="flex items-center justify-between gap-4">
               <button
                 onClick={() => handleNavClick('resources')}
@@ -1703,58 +1796,63 @@ export default function App() {
                 <ArrowLeft className="w-4 h-4" />
                 Back to Hub
               </button>
-              <button
-                type="button"
-                onClick={() => handlePageShare(
-                  `${activeAsset.name} | Techie 4 Christ`,
-                  activeAsset.description || `${getAssetPriceLabel(activeAsset)} resource from Techie 4 Christ.`,
-                  `${window.location.origin}/resources/${encodeURIComponent(getAssetSlug(activeAsset))}`
-                )}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-white/10 text-[10px] font-black uppercase tracking-widest text-slate-300 hover:border-amber-400/40 hover:text-white"
-              >
-                Share Resource
-                <ArrowRight className="w-3 h-3" />
-              </button>
             </div>
-            <div className="glass-card rounded-[2.5rem] overflow-hidden border border-white/10 bg-slate-900/70">
-              <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr]">
+            <div className="glass-card rounded-none overflow-hidden border border-white/10 bg-slate-900/70">
+              <div className="grid grid-cols-1 lg:grid-cols-2">
                 <div className="bg-slate-950/80">
                   {activeAsset.image ? (
-                    <img src={activeAsset.image} alt={activeAsset.name} className="w-full h-full object-cover min-h-[320px] lg:min-h-[520px]" />
+                    <img src={activeAsset.image} alt={activeAsset.name} className="w-full h-full object-cover min-h-[360px] lg:min-h-[640px]" />
                   ) : (
-                    <div className="min-h-[320px] lg:min-h-[520px] flex items-center justify-center text-slate-500">
+                    <div className="min-h-[360px] lg:min-h-[640px] flex items-center justify-center text-slate-500">
                       No preview image
                     </div>
                   )}
                 </div>
-                <div className="p-8 md:p-12 lg:p-14 space-y-6">
-                  <div className="space-y-3">
-                    <span className="inline-flex items-center rounded-full border border-amber-400/30 bg-amber-400/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.28em] text-amber-300">
+                <div className="p-8 md:p-12 lg:p-14 space-y-8 bg-slate-900/90">
+                  <div className="space-y-4">
+                    <span className="inline-flex items-center rounded-none border border-amber-400/30 bg-amber-400/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.28em] text-amber-300">
                       {getAssetPriceLabel(activeAsset)}
                     </span>
                     <h1 className="text-4xl md:text-5xl font-extrabold tracking-tighter text-white">{activeAsset.name}</h1>
-                    <p className="text-slate-300 leading-relaxed text-base md:text-lg">{activeAsset.description}</p>
                   </div>
-                  <div className="flex flex-wrap gap-3">
-                    <span className="inline-flex items-center rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-300">
-                      {activeAsset.category}
-                    </span>
-                    {activeAsset.platform && (
-                      <span className="inline-flex items-center rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-300">
-                        {activeAsset.platform}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex flex-wrap items-center gap-3 pt-2">
-                    <a
-                      href={activeAsset.externalUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-2 px-5 py-3 rounded-full bg-amber-400 text-slate-950 text-[10px] font-black uppercase tracking-widest"
-                    >
-                      Open Resource
-                      <ArrowRight className="w-3 h-3" />
-                    </a>
+                  <div className="grid gap-6 rounded-none border border-amber-400/20 bg-white/5 p-6 md:p-8">
+                    <div className="space-y-4">
+                      <p className="text-[10px] font-black uppercase tracking-[0.35em] text-slate-400">Description</p>
+                      {renderDetailDescription(activeAsset.description)}
+                    </div>
+                    <div className="flex items-center gap-3 pt-2">
+                      <a
+                        href={activeAsset.externalUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex w-full sm:w-fit items-center justify-center gap-3 px-7 py-4 rounded-none bg-amber-400 text-slate-950 text-[11px] font-black uppercase tracking-[0.34em] shadow-[0_16px_36px_rgba(251,191,36,0.28)]"
+                      >
+                        Open Resource
+                        <ArrowRight className="w-4 h-4" />
+                      </a>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 pt-2">
+                      {getAssetTags(activeAsset).map((tag) => (
+                        <span
+                          key={tag}
+                          className="inline-flex items-center rounded-none border border-white/10 bg-white/5 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-300"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => handlePageShare(
+                          `${activeAsset.name} | Techie 4 Christ`,
+                          activeAsset.description || `${getAssetPriceLabel(activeAsset)} resource from Techie 4 Christ.`,
+                          `${window.location.origin}/resources/${encodeURIComponent(getAssetSlug(activeAsset))}`
+                        )}
+                        aria-label={`Share ${activeAsset.name}`}
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-none border border-amber-400/30 bg-amber-400/10 text-amber-300 transition hover:bg-amber-400/20 hover:text-amber-200"
+                      >
+                        <ShareIcon className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1765,23 +1863,18 @@ export default function App() {
         {activeTab === 'resources' && (
           <div className="max-w-7xl mx-auto px-6 py-24 animate-in fade-in slide-in-from-bottom space-y-12">
             <div className="space-y-6">
-              <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6">
-                <h1 className="text-6xl font-extrabold tracking-tighter text-white">Digital <span className="text-amber-400">Hub</span></h1>
-                <p className="text-slate-400 mt-2 max-w-3xl">
-                  Explore templates, guides, and media resources with quick payment filters so you can jump straight into free downloads or premium tools.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => handlePageShare(
-                    'Digital Hub | Techie 4 Christ',
-                    'Templates, guides, and media resources from Techie 4 Christ.',
-                    `${window.location.origin}/resources`
-                  )}
-                  className="inline-flex items-center gap-2 self-start px-4 py-2 rounded-full border border-white/10 text-[10px] font-black uppercase tracking-widest text-slate-300 hover:border-amber-400/40 hover:text-white"
-                >
-                  Share Hub
-                  <ArrowRight className="w-3 h-3" />
-                </button>
+              <div className="rounded-none border border-white/10 bg-slate-900/50 p-6 md:p-8 lg:p-10">
+                <div className="max-w-3xl space-y-4">
+                  <span className="inline-flex items-center rounded-none border border-amber-400/30 bg-amber-400/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.28em] text-amber-300">
+                    Digital Hub
+                  </span>
+                  <h1 className="text-5xl md:text-6xl font-extrabold tracking-tighter text-white leading-[0.95]">
+                    Templates, guides, and digital assets.
+                  </h1>
+                  <p className="text-slate-400 text-base md:text-lg leading-8 max-w-3xl">
+                    Explore tools, templates, and ministry resources at a glance.
+                  </p>
+                </div>
               </div>
               <div className="flex flex-wrap items-center gap-3">
                 <span className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Filter by</span>
@@ -1833,35 +1926,46 @@ export default function App() {
                         </div>
                       </div>
                     )}
-                    <div className="p-6 flex-1 flex flex-col gap-4">
+                    <div className="p-6 md:p-7 flex-1 flex flex-col gap-5">
                       <h3 className="text-2xl font-bold text-white leading-tight line-clamp-2">{asset.name}</h3>
-                      <p className="text-slate-400 text-sm leading-relaxed flex-1 line-clamp-2">
+                      <p className="text-slate-400 text-sm md:text-[15px] leading-7 flex-1 line-clamp-3 whitespace-pre-line">
                         {asset.description}
                       </p>
                       <div className="flex flex-wrap gap-2">
-                        <span className="inline-flex items-center rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.18em] text-slate-300">
+                        {getAssetTags(asset).slice(0, 3).map((tag) => (
+                          <span
+                            key={tag}
+                            className="inline-flex items-center rounded-none border border-white/10 bg-white/5 px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.18em] text-slate-300"
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <span className="inline-flex items-center rounded-none border border-white/10 bg-white/5 px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.18em] text-slate-300">
                           {getAssetPriceLabel(asset)}
                         </span>
                       </div>
                       <div className="mt-auto flex items-center justify-between pt-2">
                         <div className="flex items-center gap-2 text-slate-500">
-                          <span className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/5">
+                          <span className="inline-flex h-8 w-8 items-center justify-center rounded-none border border-white/10 bg-white/5">
                             <PriceIcon className="h-3.5 w-3.5" />
                           </span>
-                          <span className="inline-flex h-8 min-w-8 items-center justify-center rounded-full border border-white/10 bg-white/5 px-2 text-[9px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+                          <span className="inline-flex h-8 min-w-8 items-center justify-center rounded-none border border-white/10 bg-white/5 px-2 text-[9px] font-semibold uppercase tracking-[0.12em] text-slate-400">
                             {getAssetPriceLabel(asset)}
                           </span>
                         </div>
-                        <a
-                          href={asset.externalUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          aria-label={`Open ${asset.name}`}
-                          onClick={(event) => event.stopPropagation()}
-                          className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-amber-400 text-slate-950 shadow-[0_10px_24px_rgba(251,191,36,0.25)] transition hover:-translate-y-0.5"
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            navigate(`/resources/${encodeURIComponent(getAssetSlug(asset))}`);
+                          }}
+                          aria-label={`View details for ${asset.name}`}
+                          className="inline-flex h-9 items-center justify-center rounded-none bg-amber-400 px-4 text-slate-950 text-[10px] font-black uppercase tracking-widest shadow-[0_10px_24px_rgba(251,191,36,0.25)] transition hover:-translate-y-0.5"
                         >
-                          <ArrowRight className="w-3.5 h-3.5" />
-                        </a>
+                          View Details
+                        </button>
                       </div>
                     </div>
                   </article>
@@ -1890,7 +1994,7 @@ export default function App() {
         )}
 
         {activeTab === 'portfolio-detail' && activePortfolioItem && (
-          <div className="max-w-7xl mx-auto px-6 py-24 animate-in fade-in slide-in-from-bottom space-y-10">
+          <div className="max-w-screen-2xl mx-auto px-6 py-24 animate-in fade-in slide-in-from-bottom space-y-10">
             <div className="flex items-center justify-between gap-4">
               <button
                 onClick={() => handleNavClick('portfolio')}
@@ -1899,50 +2003,62 @@ export default function App() {
                 <ArrowLeft className="w-4 h-4" />
                 Back to Portfolio
               </button>
-              <button
-                type="button"
-                onClick={() => handlePageShare(
-                  `${activePortfolioItem.title} | Techie 4 Christ`,
-                  activePortfolioItem.description || 'Portfolio preview from Techie 4 Christ.',
-                  `${window.location.origin}/portfolio/${encodeURIComponent(getPortfolioSlug(activePortfolioItem))}`
-                )}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-white/10 text-[10px] font-black uppercase tracking-widest text-slate-300 hover:border-amber-400/40 hover:text-white"
-              >
-                Share Work
-                <ArrowRight className="w-3 h-3" />
-              </button>
             </div>
-            <div className="glass-card rounded-[2.5rem] overflow-hidden border border-white/10 bg-slate-900/70">
-              <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr]">
+            <div className="glass-card rounded-none overflow-hidden border border-white/10 bg-slate-900/70">
+              <div className="grid grid-cols-1 lg:grid-cols-2">
                 <div className="bg-slate-950/80">
                   {activePortfolioItem.image ? (
-                    <img src={activePortfolioItem.image} alt={activePortfolioItem.title} className="w-full h-full object-cover min-h-[320px] lg:min-h-[520px]" />
+                    <img src={activePortfolioItem.image} alt={activePortfolioItem.title} className="w-full h-full object-cover min-h-[360px] lg:min-h-[640px]" />
                   ) : (
-                    <div className="min-h-[320px] lg:min-h-[520px] flex items-center justify-center text-slate-500">
+                    <div className="min-h-[360px] lg:min-h-[640px] flex items-center justify-center text-slate-500">
                       No preview image
                     </div>
                   )}
                 </div>
-                <div className="p-8 md:p-12 lg:p-14 space-y-6">
-                  <div className="space-y-3">
+                <div className="p-8 md:p-12 lg:p-14 space-y-8 bg-slate-900/90">
+                  <div className="space-y-4">
                     {activePortfolioItem.tag && (
-                      <span className="inline-flex items-center rounded-full border border-indigo-400/30 bg-indigo-400/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.28em] text-indigo-300">
+                      <span className="inline-flex items-center rounded-none border border-indigo-400/30 bg-indigo-400/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.28em] text-indigo-300">
                         {activePortfolioItem.tag}
                       </span>
                     )}
                     <h1 className="text-4xl md:text-5xl font-extrabold tracking-tighter text-white">{activePortfolioItem.title}</h1>
-                    <p className="text-slate-300 leading-relaxed text-base md:text-lg">{activePortfolioItem.description}</p>
                   </div>
-                  <div className="flex flex-wrap items-center gap-3 pt-2">
-                    <a
-                      href={activePortfolioItem.externalUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-2 px-5 py-3 rounded-full bg-amber-400 text-slate-950 text-[10px] font-black uppercase tracking-widest"
-                    >
-                      Open Work
-                      <ArrowRight className="w-3 h-3" />
-                    </a>
+                  <div className="grid gap-6 rounded-none border border-indigo-400/20 bg-white/5 p-6 md:p-8">
+                    <div className="space-y-4">
+                      <p className="text-[10px] font-black uppercase tracking-[0.35em] text-slate-400">Description</p>
+                      {renderDetailDescription(activePortfolioItem.description)}
+                    </div>
+                    <div className="pt-2">
+                      <a
+                        href={activePortfolioItem.externalUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex w-full sm:w-fit items-center justify-center gap-3 px-7 py-4 rounded-none bg-amber-400 text-slate-950 text-[11px] font-black uppercase tracking-[0.34em] shadow-[0_16px_36px_rgba(251,191,36,0.28)]"
+                      >
+                        Open Work
+                        <ArrowRight className="w-4 h-4" />
+                      </a>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 pt-2">
+                      {activePortfolioItem.tag && (
+                        <span className="inline-flex items-center gap-2 rounded-none border border-indigo-400/30 bg-indigo-400/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.28em] text-indigo-300">
+                          {activePortfolioItem.tag}
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => handlePageShare(
+                          `${activePortfolioItem.title} | Techie 4 Christ`,
+                          activePortfolioItem.description || 'Portfolio preview from Techie 4 Christ.',
+                          `${window.location.origin}/portfolio/${encodeURIComponent(getPortfolioSlug(activePortfolioItem))}`
+                        )}
+                        aria-label={`Share ${activePortfolioItem.title}`}
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-none border border-indigo-400/30 bg-indigo-400/10 text-indigo-300 transition hover:bg-indigo-400/20 hover:text-indigo-200"
+                      >
+                        <ShareIcon className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1953,23 +2069,18 @@ export default function App() {
         {activeTab === 'portfolio' && (
           <div className="max-w-7xl mx-auto px-6 py-24 animate-in fade-in slide-in-from-bottom space-y-12">
             <div className="space-y-6">
-              <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6">
-                <h1 className="text-6xl font-extrabold tracking-tighter text-white">Featured <span className="text-indigo-400">Work</span></h1>
-                <p className="text-slate-400 mt-2 max-w-3xl">
-                  Showcasing tools, products, and digital builds from Contentful with clear visual previews and project-type markers.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => handlePageShare(
-                    'Featured Work | Techie 4 Christ',
-                    'Digital builds, products, and project previews from Techie 4 Christ.',
-                    `${window.location.origin}/portfolio`
-                  )}
-                  className="inline-flex items-center gap-2 self-start px-4 py-2 rounded-full border border-white/10 text-[10px] font-black uppercase tracking-widest text-slate-300 hover:border-amber-400/40 hover:text-white"
-                >
-                  Share Portfolio
-                  <ArrowRight className="w-3 h-3" />
-                </button>
+              <div className="rounded-none border border-white/10 bg-slate-900/50 p-6 md:p-8 lg:p-10">
+                <div className="max-w-3xl space-y-4">
+                  <span className="inline-flex items-center rounded-none border border-indigo-400/30 bg-indigo-400/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.28em] text-indigo-300">
+                    Featured Work
+                  </span>
+                  <h1 className="text-5xl md:text-6xl font-extrabold tracking-tighter text-white leading-[0.95]">
+                    Projects, builds, and portfolio previews.
+                  </h1>
+                  <p className="text-slate-400 text-base md:text-lg leading-8 max-w-3xl">
+                    Explore project previews at a glance.
+                  </p>
+                </div>
               </div>
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 reveal-grid">
@@ -1998,31 +2109,41 @@ export default function App() {
                       )}
                     </div>
                   </div>
-                  <div className="p-6 flex-1 flex flex-col gap-4">
+                  <div className="p-6 md:p-7 flex-1 flex flex-col gap-5">
                     <h4 className="text-2xl font-bold text-white leading-tight line-clamp-2">{item.title}</h4>
-                    <p className="text-slate-400 text-sm leading-relaxed flex-1 line-clamp-2">{item.description}</p>
+                    <p className="text-slate-400 text-sm md:text-[15px] leading-7 flex-1 line-clamp-3 whitespace-pre-line">{item.description}</p>
                     {item.tag && (
                       <div className="flex flex-wrap gap-2">
-                        <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.18em] text-slate-300">
+                        <span className="inline-flex items-center gap-2 rounded-none border border-white/10 bg-white/5 px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.18em] text-slate-300">
                           <PortfolioIcon tag={item.tag} className="h-3.5 w-3.5" />
                           {item.tag}
                         </span>
                       </div>
                     )}
-                    <div className="mt-auto flex items-center justify-between pt-2">
+                    <div className="flex flex-wrap gap-2">
+                      <span className="inline-flex items-center rounded-none border border-white/10 bg-white/5 px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.18em] text-slate-300">
+                        Project preview
+                      </span>
+                    </div>
+                    <div className="mt-auto flex items-center justify-between pt-3">
                       <div className="flex items-center gap-2 text-slate-500">
-                        <span className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/5">
+                        <span className="inline-flex h-8 w-8 items-center justify-center rounded-none border border-white/10 bg-white/5">
                           <PortfolioIcon tag={item.tag} className="h-3.5 w-3.5" />
                         </span>
                         {item.tag && (
-                          <span className="inline-flex h-8 min-w-8 items-center justify-center rounded-full border border-white/10 bg-white/5 px-2 text-[9px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+                          <span className="inline-flex h-8 min-w-8 items-center justify-center rounded-none border border-white/10 bg-white/5 px-2 text-[9px] font-semibold uppercase tracking-[0.12em] text-slate-400">
                             {item.tag}
                           </span>
                         )}
                       </div>
-                      <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-amber-400 text-slate-950 shadow-[0_10px_24px_rgba(251,191,36,0.25)] transition group-hover:-translate-y-0.5">
-                        <ArrowRight className="w-3.5 h-3.5" />
-                      </span>
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/portfolio/${encodeURIComponent(getPortfolioSlug(item))}`)}
+                        aria-label={`View details for ${item.title}`}
+                        className="inline-flex h-9 items-center justify-center rounded-none bg-amber-400 px-4 text-slate-950 text-[10px] font-black uppercase tracking-widest shadow-[0_10px_24px_rgba(251,191,36,0.25)] transition hover:-translate-y-0.5"
+                      >
+                        View Details
+                      </button>
                     </div>
                   </div>
                 </article>

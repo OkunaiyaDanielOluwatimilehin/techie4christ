@@ -42,6 +42,19 @@ const stripHtml = (value = '') =>
     .replace(/\s+/g, ' ')
     .trim();
 
+const extractContentfulText = (value = '') => {
+  if (typeof value === 'string') return value.trim();
+  if (!value || typeof value !== 'object') return '';
+  const current = value;
+  const children = Array.isArray(current.content)
+    ? current.content.map((child) => extractContentfulText(child)).join(' ')
+    : '';
+  if (current.value && typeof current.value === 'string') {
+    return current.value.trim();
+  }
+  return stripHtml(children);
+};
+
 const sanitizeDescription = (value = '', fallback = '') => {
   const text = stripHtml(value) || fallback;
   return text.length > 180 ? `${text.slice(0, 177)}...` : text;
@@ -77,7 +90,7 @@ const buildAbsoluteBaseUrl = (env) => {
   const explicit = env.SITE_URL || env.VITE_SITE_URL || env.PUBLIC_SITE_URL;
   if (explicit) return explicit.replace(/\/+$/, '');
   if (env.VERCEL_URL) return `https://${env.VERCEL_URL.replace(/\/+$/, '')}`;
-  return 'https://techie4christ.com';
+  return 'https://techie4christ.vercel.app';
 };
 
 const fetchContentfulEntries = async (env, contentType) => {
@@ -157,7 +170,7 @@ const parseAssets = (data) => {
       id: item.sys.id,
       title: fields.name || fields.title || 'Untitled',
       slug: slugify(fields.name || fields.title || item.sys.id),
-      description: fields.description || '',
+      description: extractContentfulText(fields.description),
       image:
         resolveAssetUrl(fields.image, assetMap) ||
         resolveAssetUrl(fields.thumbnail, assetMap) ||
@@ -176,7 +189,7 @@ const parsePortfolioItems = (data) => {
       id: item.sys.id,
       title: fields.name || fields.title || 'Untitled',
       slug: slugify(fields.name || fields.title || item.sys.id),
-      description: fields.description || '',
+      description: extractContentfulText(fields.description),
       image:
         resolveAssetUrl(fields.image, assetMap) ||
         resolveAssetUrl(fields.thumbnail, assetMap) ||
@@ -196,7 +209,12 @@ const injectMeta = (template, meta) => {
     [/\<meta property="og:title" content=".*?"\>/i, `<meta property="og:title" content="${escapeAttr(meta.title)}">`],
     [/\<meta property="og:description" content=".*?"\>/i, `<meta property="og:description" content="${escapeAttr(meta.description)}">`],
     [/\<meta property="og:image" content=".*?"\>/i, `<meta property="og:image" content="${escapeAttr(meta.image)}">`],
+    [/\<meta property="og:image:alt" content=".*?"\>/i, `<meta property="og:image:alt" content="${escapeAttr(meta.title)}">`],
+    [/\<meta property="og:image:width" content=".*?"\>/i, `<meta property="og:image:width" content="${escapeAttr(meta.imageWidth || '1200')}">`],
+    [/\<meta property="og:image:height" content=".*?"\>/i, `<meta property="og:image:height" content="${escapeAttr(meta.imageHeight || '630')}">`],
     [/\<meta property="og:url" content=".*?"\>/i, `<meta property="og:url" content="${escapeAttr(meta.url)}">`],
+    [/\<meta property="og:site_name" content=".*?"\>/i, `<meta property="og:site_name" content="${escapeAttr(meta.siteName || 'Techie 4 Christ')}">`],
+    [/\<link rel="canonical" href=".*?"\>/i, `<link rel="canonical" href="${escapeAttr(meta.url)}">`],
     [/\<meta name="twitter:card" content=".*?"\>/i, `<meta name="twitter:card" content="summary_large_image">`],
     [/\<meta name="twitter:title" content=".*?"\>/i, `<meta name="twitter:title" content="${escapeAttr(meta.title)}">`],
     [/\<meta name="twitter:description" content=".*?"\>/i, `<meta name="twitter:description" content="${escapeAttr(meta.description)}">`],
@@ -214,9 +232,14 @@ const renderPageShell = (meta) => `
       <p style="font-size:1.05rem;line-height:1.9;color:#cbd5e1;max-width:760px;margin:0 0 24px;">${escapeHtml(meta.description)}</p>
       <div style="border-radius:28px;overflow:hidden;border:1px solid rgba(255,255,255,.12);box-shadow:0 24px 60px rgba(2,6,23,.45);background:#0f172a;">
         <div style="aspect-ratio:16/9;background:#111827 center/cover no-repeat;${meta.image ? `background-image:url('${escapeAttr(meta.image)}');` : ''}"></div>
-        <div style="padding:24px 24px 30px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;">
+        <div style="padding:24px 24px 30px;display:grid;gap:18px;">
+          <div style="display:grid;gap:10px;max-width:760px;">
+            <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;">
           <span style="display:inline-flex;align-items:center;border:1px solid rgba(251,191,36,.28);background:rgba(251,191,36,.12);color:#fbbf24;border-radius:999px;padding:6px 12px;font-size:10px;font-weight:800;letter-spacing:.28em;text-transform:uppercase;">${escapeHtml(meta.badge || 'Preview')}</span>
-          <a href="${escapeAttr(meta.url)}" style="font-size:10px;letter-spacing:.35em;text-transform:uppercase;color:#fbbf24;text-decoration:none;">Open Page</a>
+          <span style="font-size:10px;letter-spacing:.35em;text-transform:uppercase;color:#94a3b8;">${escapeHtml(meta.siteName || 'Techie 4 Christ')}</span>
+            </div>
+          </div>
+          <a href="${escapeAttr(meta.url)}" style="display:inline-flex;align-items:center;justify-content:center;width:max-content;font-size:10px;letter-spacing:.35em;text-transform:uppercase;color:#020617;background:#fbbf24;padding:12px 18px;border-radius:999px;text-decoration:none;font-weight:800;">Open Page</a>
         </div>
       </div>
     </section>
@@ -275,6 +298,9 @@ const main = async () => {
       image,
       url: routeUrl,
       ogType: 'article',
+      siteName: 'Techie 4 Christ',
+      imageWidth: '1200',
+      imageHeight: '630',
       category: article.category || 'Article',
       pubDate: article.pubDate || '',
     }, renderArticleShell({
@@ -294,6 +320,9 @@ const main = async () => {
     image: toAbsoluteUrl(baseUrl, resourcesHero.image) || `${baseUrl}/android-chrome-512x512.png`,
     url: `${baseUrl}/resources`,
     ogType: 'website',
+    siteName: 'Techie 4 Christ',
+    imageWidth: '1200',
+    imageHeight: '630',
   }, renderPageShell({
     title: 'Digital Hub',
     description: resourcesHero.description || 'Templates, guides, and media resources from Techie 4 Christ.',
@@ -309,6 +338,9 @@ const main = async () => {
     image: toAbsoluteUrl(baseUrl, portfolioHero.image) || `${baseUrl}/android-chrome-512x512.png`,
     url: `${baseUrl}/portfolio`,
     ogType: 'website',
+    siteName: 'Techie 4 Christ',
+    imageWidth: '1200',
+    imageHeight: '630',
   }, renderPageShell({
     title: 'Featured Work',
     description: portfolioHero.description || 'Digital builds, products, and project previews from Techie 4 Christ.',
@@ -328,6 +360,9 @@ const main = async () => {
       image: toAbsoluteUrl(baseUrl, asset.image) || `${baseUrl}/android-chrome-512x512.png`,
       url: routeUrl,
       ogType: 'website',
+      siteName: 'Techie 4 Christ',
+      imageWidth: '1200',
+      imageHeight: '630',
     }, renderPageShell({
       title: asset.title,
       description: sanitizeDescription(asset.description, 'Digital resource preview from Techie 4 Christ.'),
@@ -348,6 +383,9 @@ const main = async () => {
       image: toAbsoluteUrl(baseUrl, item.image) || `${baseUrl}/android-chrome-512x512.png`,
       url: routeUrl,
       ogType: 'website',
+      siteName: 'Techie 4 Christ',
+      imageWidth: '1200',
+      imageHeight: '630',
     }, renderPageShell({
       title: item.title,
       description: sanitizeDescription(item.description, 'Portfolio preview from Techie 4 Christ.'),
@@ -363,6 +401,9 @@ const main = async () => {
     image: `${baseUrl}/android-chrome-512x512.png`,
     url: `${baseUrl}/articles`,
     ogType: 'website',
+    siteName: 'Techie 4 Christ',
+    imageWidth: '1200',
+    imageHeight: '630',
   }, renderPageShell({
     title: 'Articles',
     description: 'Faith-driven tech reflections and practical articles from Techie 4 Christ.',
